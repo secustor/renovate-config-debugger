@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { encodeShareFragment, PACKAGE_RULES_CONFIG } from "./fixtures";
-import { must, resultsPanel, setEditorContent } from "./helpers";
+import { gotoAppAtDefaultConfig, must, resultsPanel, setEditorContent } from "./helpers";
 
 /**
  * Journey 2 — share link opened into an already-running app (the 017
@@ -43,8 +43,7 @@ test("hash-only navigation into a running app loads and runs the shared config",
 test("hash navigation with unsaved edits fires the clobber confirm, then loads on accept", async ({
   page,
 }) => {
-  await page.goto("/");
-  await expect(page.locator(".cm-content")).toContainText("config:recommended");
+  await gotoAppAtDefaultConfig(page);
 
   // Introduce an unsaved edit so content drifts from the loaded baseline —
   // this is what makes the next navigation a potential clobber.

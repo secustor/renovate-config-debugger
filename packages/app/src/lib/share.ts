@@ -35,10 +35,11 @@ export interface ShareView {
   /** Migration step index (only meaningful while the migrate stepper is mounted). */
   step?: number;
   /**
-   * Roadmap 044: the simulator's merge-step index. Additive within v2 exactly
-   * like `tab` — a pre-044 link simply lacks it (absent = step 0) and a pre-044
-   * reader ignores the unknown key. Only meaningful together with a `sim`
-   * descriptor that reproduces the simulation; on its own it restores nothing.
+   * Roadmap 044: the simulator's merge-step index — DECODE-ONLY since 094
+   * retired the stepper it addressed. Links carrying one are already out there,
+   * so it is still parsed and sanitized (the `simulator` tab id's precedent,
+   * 080); nothing encodes it and nothing restores it. The stops it pointed into
+   * are all on screen at once now.
    */
   simStep?: number;
   /**

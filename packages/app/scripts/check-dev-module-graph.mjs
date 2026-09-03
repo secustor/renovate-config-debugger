@@ -36,9 +36,8 @@ const server = await createServer({
 
 const importRe =
   /from\s*["']([^"']+)["']|import\s*\(\s*["']([^"']+)["']\s*\)|import\s*["']([^"']+)["']/g;
-const seen = new Map(); // url -> importer
 const queue = ["/src/main.tsx"];
-seen.set(queue[0], "(entry)");
+const seen = new Set(queue);
 const violations = [];
 
 while (queue.length > 0) {
@@ -67,7 +66,7 @@ while (queue.length > 0) {
       }
     }
     if (spec.startsWith("/") && !seen.has(spec)) {
-      seen.set(spec, url);
+      seen.add(spec);
       queue.push(spec);
     }
   }

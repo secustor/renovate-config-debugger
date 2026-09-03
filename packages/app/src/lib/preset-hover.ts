@@ -1,4 +1,5 @@
 import type { PresetNode, PresetNodeState } from "@renovate-config-debugger/engine";
+import { computeTreeStats } from "./preset-tree-stats";
 
 /**
  * Roadmap 023: preset-string hovers in the config editor. Hovering a preset
@@ -33,37 +34,35 @@ export interface PresetHoverContext {
 }
 
 /** Builds a `name → info` lookup from a run's resolution tree — the first
- *  occurrence of each preset name wins (they resolve to the same content). */
+ *  occurrence of each preset name wins (they resolve to the same content).
+ *  Reads the cached single walk's `occurrencesByName`, whose lists are already
+ *  in pre-order, rather than walking the tree a second time. */
 export function buildPresetLookup(root: PresetNode | undefined): Map<string, PresetHoverInfo> {
   const map = new Map<string, PresetHoverInfo>();
   if (!root) {
     return map;
   }
-  const visit = (node: PresetNode): void => {
-    for (const child of node.children) {
-      if (!map.has(child.name)) {
-        const resolved =
-          typeof child.resolved === "object" &&
-          child.resolved !== null &&
-          !Array.isArray(child.resolved)
-            ? (child.resolved as Record<string, unknown>)
-            : undefined;
-        const ruleCount = Array.isArray(resolved?.packageRules) ? resolved.packageRules.length : 0;
-        const optionCount = resolved
-          ? Object.keys(resolved).filter((k) => k !== "packageRules").length
-          : 0;
-        map.set(child.name, {
-          nodeId: child.id,
-          name: child.name,
-          state: child.state,
-          sourceKind: child.source?.presetSource ?? "internal",
-          optionCount,
-          ruleCount,
-        });
-      }
-      visit(child);
+  for (const [name, occurrences] of computeTreeStats(root).occurrencesByName) {
+    const node = occurrences[0];
+    if (!node) {
+      continue;
     }
-  };
-  visit(root);
+    const resolved =
+      typeof node.resolved === "object" && node.resolved !== null && !Array.isArray(node.resolved)
+        ? (node.resolved as Record<string, unknown>)
+        : undefined;
+    const ruleCount = Array.isArray(resolved?.packageRules) ? resolved.packageRules.length : 0;
+    const optionCount = resolved
+      ? Object.keys(resolved).filter((k) => k !== "packageRules").length
+      : 0;
+    map.set(name, {
+      nodeId: node.id,
+      name: node.name,
+      state: node.state,
+      sourceKind: node.source?.presetSource ?? "internal",
+      optionCount,
+      ruleCount,
+    });
+  }
   return map;
 }

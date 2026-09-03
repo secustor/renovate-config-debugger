@@ -3,9 +3,9 @@ import type {
   ProvenanceLayer,
   RuleAttribution,
 } from "@renovate-config-debugger/engine";
-import { cleanup, render } from "@testing-library/react";
+import { render } from "@testing-library/react";
 import type { ReactNode } from "react";
-import { afterEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import type { DataTableRow } from "@/components/data-table";
 import { DECIDED_BY, type EffectiveRowContext, effectiveTableRows } from "./effective-rows";
 import type { DeciderGroup, DeciderId } from "./decider-groups";
@@ -15,6 +15,7 @@ import {
   type DescriptionLedger,
 } from "./description-ledger";
 import { isOverridden } from "@/lib/effective-tally";
+import { descriptionEntries, descriptionProvenance } from "@tools/test/description-provenance";
 import { presetLayer, provEntry, provStep } from "@tools/test/key-provenance";
 
 /**
@@ -27,12 +28,9 @@ import { presetLayer, provEntry, provStep } from "@tools/test/key-provenance";
  * covers what only a run can prove.
  */
 
-// vitest runs without `globals`, so RTL's automatic cleanup never registers.
-afterEach(cleanup);
-
 const DEFAULTS: ProvenanceLayer = { kind: "defaults" };
 const REPO: ProvenanceLayer = { kind: "repo" };
-const RECOMMENDED: ProvenanceLayer = presetLayer("config:recommended");
+const RECOMMENDED: ProvenanceLayer = presetLayer("p1", "config:recommended");
 
 const CONTEXT: EffectiveRowContext = { ruleAttribution: null, ledger: null, presetName: null };
 
@@ -103,21 +101,13 @@ describe("the packageRules row", () => {
 
 describe("the description row", () => {
   function ledgerOf(value: string): DescriptionLedger {
-    const ledger = buildDescriptionLedger({
-      entries: [
-        {
-          index: 0,
-          value,
-          viaTopLevel: RECOMMENDED,
-          node: { nodeId: "p1", name: "config:recommended" },
-        },
-      ],
-      unattributed: [],
-      finalLength: 1,
-      dropped: [],
-      ruleDescriptions: [],
-      degraded: false,
-    });
+    const ledger = buildDescriptionLedger(
+      descriptionProvenance({
+        entries: descriptionEntries([
+          { value, via: RECOMMENDED, node: "p1", nodeName: "config:recommended" },
+        ]),
+      }),
+    );
     if (!ledger) {
       throw new Error("expected a ledger, got null");
     }

@@ -1,9 +1,11 @@
 /**
  * Roadmap 078 — the From-repository picker's discovery: walk the loaded
  * repository's git tree, keep the paths the EXTRACTABLE managers claim, fetch
- * those files and run Renovate's own extraction over each. App-shell code by
- * the 085 layering precedent: the feature (`features/simulator/repo-deps.ts`)
- * declares the shapes and draws the rows; this hook computes them.
+ * those files and run Renovate's own extraction over each. Feature-local: this
+ * hook computes the view; its contract types (`RepoDep`, `RepoDepFile`,
+ * `RepoDepsView`, `LoadedRepo`) live in `src/types/repo.ts` so the shell can
+ * hold the result without importing the feature's internals, and
+ * `repo-deps.ts` holds the pure `PackageDependency → FormState` mapping.
  *
  * Discovery is ON DEMAND — `ensure()` fires when the reader opens the tab,
  * never on the load itself: a tab nobody opens must not spend the rate limit.

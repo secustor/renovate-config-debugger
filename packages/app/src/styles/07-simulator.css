@@ -586,23 +586,26 @@
   margin-top: 0.25rem;
 }
 
-/* 044: the merge step-through inside the final-config section. It reuses the
-   004 `.migration-steps` grammar verbatim — the only thing it adds is the
-   section spacing every other `.sim-final` block has. 042's insets are scoped
-   to `.card > .migration-steps`, so they deliberately don't reach this one: it
-   sits inside `.sim-results`, which already brings the card's 0.75rem inset. */
-.sim-merge-steps {
+/* 094: the merge replay — the ordered stop list that succeeded the 044/046
+   stepper. It keeps the 004 `.migration-step-*` head/prose grammar (one
+   vocabulary for "a stop in a sequence"), and adds only the list reset and the
+   spacing between stops. */
+.sim-merge-stops {
+  list-style: none;
   margin: 0.5rem 0 0.75rem;
+  padding: 0;
 }
 
-/* 046: the merge timeline reuses the `.stage-timeline` grammar; only the
-   Pipeline tab's outer margins are re-tuned for this context. */
-.sim-merge-steps .stage-timeline {
-  margin: 0.5rem 0;
+.sim-merge-stop {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
 }
 
-.sim-merge-steps .migration-steps {
-  margin-top: 0.4rem;
+.sim-merge-stop + .sim-merge-stop {
+  border-top: 1px solid var(--border);
+  margin-top: 0.6rem;
+  padding-top: 0.6rem;
 }
 
 /* 046: the final stop's body — the resolved config with its copy affordance,

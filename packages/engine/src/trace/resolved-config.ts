@@ -1,6 +1,7 @@
 import { getDefaultConfig, mergeChildConfig } from "../renovate-adapter";
 import type { PresetNode, TraceResult } from "./model";
 import { deepEqual } from "./provenance";
+import { replayableRun } from "./tree";
 
 /**
  * Roadmap 051: the effective config as a copyable DOCUMENT — the counterpart
@@ -152,8 +153,7 @@ function resolvedByName(root: PresetNode): Map<string, Obj> {
 
 /**
  * Computes the resolved config as a standalone document, or `undefined` when
- * the run lacks the data (mirrors `computeProvenance`'s availability: no final
- * config, or preset resolution did not finish).
+ * the run lacks the data (see `replayableRun`).
  *
  * `includeDefaults` applies to `"full"` only. For `"keep-internal"` it is
  * ignored: explicit defaults in a config body would merge AFTER the kept
@@ -165,10 +165,11 @@ export function computeResolvedConfig(
   mode: ResolvedConfigMode,
   opts?: { includeDefaults?: boolean },
 ): ResolvedConfigOutput | undefined {
-  const root = result.presetTree;
-  if (!result.finalConfig || !root || root.resolved === undefined || root.input === undefined) {
+  const replay = replayableRun(result);
+  if (!replay) {
     return undefined;
   }
+  const { root } = replay;
 
   if (mode === "full") {
     const resolved = structuredClone(root.resolved) as Obj;

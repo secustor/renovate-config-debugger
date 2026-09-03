@@ -14,10 +14,9 @@ import { useSyncedReset } from "@/hooks/use-synced-reset";
 /**
  * Roadmap 075 (v2, iteration 4) — the pipeline rail: one node per stage on a
  * single line, each carrying 024's status glyph, the stage's name and its
- * delta (`stage-delta.ts`). It replaces 046's chip timeline INSIDE the
- * Pipeline tab only: the chip grammar (`SequenceTimeline`) is still the
- * simulator's merge sequence, which is a variable-length path through
- * `packageRules`, not a fixed row of eight columns.
+ * delta (`stage-delta.ts`). It replaced 046's chip timeline inside the Pipeline
+ * tab; roadmap 094 retired that grammar's last consumer (the simulator's merge
+ * stepper), so this rail is the app's one sequence rendering now.
  *
  * The landing's static preview (iteration 2) is the same component in
  * `preview` mode rather than a second rail: one geometry, one set of glyph
@@ -194,13 +193,10 @@ function PreviewNode({
 /** Roadmap 075 (the landing transition): how fast the preview walks its own
  *  list while a run is in flight. Paced narration, not measurement — the
  *  engine reports nothing until it is finished. The design's pace: quick
- *  enough that the whole walk fits in the moment before the shell docks in. */
+ *  enough that the whole walk fits in the moment before the shell docks in.
+ *  An uninterrupted walk is 1.28 s at this pace; App's `LANDING_WALK_CAP_MS`
+ *  (use-landing-walk.ts) must stay comfortably above it. */
 const RUNNING_STEP_MS = 160;
-
-/** Roadmap 076 review: what an uninterrupted walk takes end to end —
- *  1.28 s at this pace. Stated here because App's `LANDING_WALK_CAP_MS`
- *  (the safety cap on the walk-end handshake below) must stay comfortably
- *  above it. */
 
 /** The last column. The run's own completion is what lights it, and by then
  *  the landing has unmounted — so the narration never claims it. */

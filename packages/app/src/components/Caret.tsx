@@ -8,17 +8,13 @@
  * `aria-expanded`, so a screen reader reading a triangle out as text says the
  * same thing twice, badly. Hence `aria-hidden` here rather than per site.
  *
- * `empty` is the inert variant (roadmap 082's defaults rows): the slot with no
- * triangle in it, kept so option names still start on the same edge as every
- * other band's.
- *
  * NOT the preset tree's row caret — that one is a `<button aria-label>` inside
  * a `treeitem`, a control rather than an ornament, and it stays as it is.
  */
-export function Caret({ open, empty }: { open?: boolean; empty?: boolean }) {
+export function Caret({ open }: { open?: boolean }) {
   return (
     <span className="caret" aria-hidden="true">
-      {empty ? "" : open ? "▾" : "▸"}
+      {open ? "▾" : "▸"}
     </span>
   );
 }

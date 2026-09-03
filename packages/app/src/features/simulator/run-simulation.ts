@@ -1,6 +1,6 @@
 import type { SimulationResult } from "@renovate-config-debugger/engine";
 import { loadEngine } from "@/platform/engine-chunk";
-import { toDescriptor } from "./form";
+import { resolveUpdateType, toDescriptor } from "./form";
 import type { FormState } from "@/types/simulator";
 
 /**
@@ -38,7 +38,7 @@ export async function runSimulation(
 ): Promise<SimulationOutcome> {
   const engine = await loadEngine();
   const derived = engine.deriveUpdateType(form.currentValue, form.newValue, form.versioning);
-  const effectiveUpdateType = touched || derived === undefined ? form.updateType : derived;
+  const effectiveUpdateType = resolveUpdateType(form, derived, touched);
   const sim = await engine.simulatePackageRules({
     config,
     dep: toDescriptor(form, effectiveUpdateType),

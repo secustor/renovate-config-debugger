@@ -7,7 +7,7 @@ import type {
 import { nf } from "@/lib/format";
 import { nextTabIndex } from "@/lib/roving-tabs";
 import { anyModifierHeld } from "@/lib/shortcuts";
-import { PIN_FORM_ID, PIN_TAB_PANEL_ID, pinTabId } from "./datalist-ids";
+import { PIN_FORM_ID, PIN_TAB_PANEL_ID, pinTabId } from "./dom-ids";
 import { DescriptorActions } from "./DescriptorActions";
 import { EMPTY_FORM } from "./form";
 import { EmptyFormGuard, PinLimitNote } from "./FormNotes";
@@ -108,6 +108,20 @@ function OneOffResult({
         </p>
         <OpenInSimulatorLink onClick={() => onOpenInSimulator(form)} />
       </div>
+    </div>
+  );
+}
+
+/**
+ * A one-off run that THREW, in the card slot its verdict would have taken.
+ * Showing nothing is indistinguishable from never having asked, so the failure
+ * is stated in the pins tab's own wording (`PinCard` says the same thing about
+ * a pinned test whose evaluation failed) and ambered like a verdict's caveat.
+ */
+function OneOffErrorNote({ message }: { message: string }) {
+  return (
+    <div className="card pin-oneoff">
+      <p className="sim-verdict-caveat">⚠ This simulation could not be checked: {message}</p>
     </div>
   );
 }
@@ -443,6 +457,7 @@ export function AddTestBox({
   // The card's own "check this once, without pinning it" run.
   const {
     oneOff,
+    error: oneOffError,
     simulating,
     simulate,
     clear: clearOneOff,
@@ -637,6 +652,9 @@ export function AddTestBox({
           canPin={!atLimit}
           onPin={() => pin(oneOff.form, oneOff.effectiveUpdateType)}
         />
+      ) : null}
+      {oneOffError !== null && oneOffError.result === result ? (
+        <OneOffErrorNote message={oneOffError.message} />
       ) : null}
       {footnote}
     </div>

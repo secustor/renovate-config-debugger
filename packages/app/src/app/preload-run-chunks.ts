@@ -11,11 +11,22 @@ import { preloadEngine } from "@/platform/engine-chunk";
  * stops replacing the module and starts full-reloading it. Same reason the
  * repo's `*-hooks.ts` files exist.
  *
- * The specifier below MUST stay the one `ResultsPane` passes to `lazy()`. A
- * preloader that warms a different string than the boundary loads is a bug
- * whose only symptom is a slow first Run.
+ * Both this preload and `ResultsPane`'s `lazy()` go through
+ * `loadResultsColumn`, mirroring `engine-chunk.ts`'s header: one specifier, so
+ * the boundary cannot end up loading a different string than the preload warms.
  */
+
+/** The results chunk's one seam — the specifier lives here, not at each call
+ *  site. Deliberately NOT single-flighted like `loadEngine`: that cache exists
+ *  for vitest's module runner with a mocked engine, and there is no such mock
+ *  for `ResultsColumn`. */
+export function loadResultsColumn() {
+  return import("@/app/ResultsColumn");
+}
+
 export function preloadRunChunks(): void {
   preloadEngine();
-  void import("@/app/ResultsColumn").catch(() => {});
+  // Best-effort: the rejection is swallowed HERE only — `lazy()` must still see
+  // a chunk-load failure, or its Suspense boundary crashes on `undefined`.
+  void loadResultsColumn().catch(() => {});
 }

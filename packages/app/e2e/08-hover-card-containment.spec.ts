@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { must, openPresetTree, runAndAwaitResult } from "./helpers";
+import { gotoAppAtDefaultConfig, must, openPresetTree, runAndAwaitResult } from "./helpers";
 
 /**
  * Roadmap 025 — a badge-glossary hover card used to inherit `white-space:
@@ -13,10 +13,7 @@ test("the preset-tree 'own options' hover card wraps its text and stays on-scree
   page,
 }) => {
   await page.setViewportSize({ width: 700, height: 900 });
-  await page.goto("/");
-  // Default editor content (config:recommended) needs no fixture — it's
-  // bundled with Renovate, so resolving it needs no network.
-  await expect(page.locator(".cm-content")).toContainText("config:recommended");
+  await gotoAppAtDefaultConfig(page);
   await runAndAwaitResult(page);
   await openPresetTree(page);
 
@@ -53,8 +50,7 @@ test("the preset-tree 'own options' hover card wraps its text and stays on-scree
  * width-capped, opaque, and framed.
  */
 test("the editor's schema hover is a bounded popover, not a page-wide strip", async ({ page }) => {
-  await page.goto("/");
-  await expect(page.locator(".cm-content")).toContainText("config:recommended");
+  await gotoAppAtDefaultConfig(page);
 
   // The schema layer loads lazily, so the first hover may land before the
   // hover extension exists — retry until the tooltip materializes. Hover by

@@ -19,13 +19,14 @@ import {
 } from "./tree-shared";
 
 function ContributionBadges({ stats, collapsed }: { stats: NodeStats; collapsed: boolean }) {
+  const opts = stats.optionKeys.length;
   return (
     <>
       {/* `opts`/`rules` style nothing — `.badge.contrib` does. They are how the
           e2e suite and `PresetTree.shimmed.test` tell the two counts apart. */}
-      {stats.ownOptions > 0 ? (
+      {opts > 0 ? (
         <ExplainedText entry={GLOSSARY.presetContribOpts} className="badge contrib opts explained">
-          · {stats.ownOptions} {pluralWord(stats.ownOptions, "opt")}
+          · {opts} {pluralWord(opts, "opt")}
         </ExplainedText>
       ) : null}
       {stats.ownRules > 0 ? (

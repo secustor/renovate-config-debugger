@@ -193,6 +193,25 @@ function list(value: string): string[] | undefined {
 }
 
 /**
+ * Roadmap 015: the updateType a run actually uses — the single spelling of the
+ * rule `run-simulation.ts`'s header asserts its two callers must not disagree
+ * on. The derived value wins unless the caller pinned one themselves, or the
+ * pair yields nothing to derive.
+ *
+ * @param derived what `deriveUpdateType` made of the version pair (the call
+ * itself stays at each site: the hook derives it synchronously off a nullable
+ * engine module, the run path after awaiting the chunk).
+ * @param touched the caller's updateType is a manual override.
+ */
+export function resolveUpdateType(
+  form: FormState,
+  derived: string | undefined,
+  touched: boolean,
+): string {
+  return touched || derived === undefined ? form.updateType : derived;
+}
+
+/**
  * @param effectiveUpdateType Roadmap 015: the updateType to actually send —
  * the derived value when the user hasn't manually overridden the select,
  * `form.updateType` otherwise. Defaults to `form.updateType` so callers that

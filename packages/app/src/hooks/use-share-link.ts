@@ -135,11 +135,10 @@ export interface ShareLinkHost {
    *  through a callback rather than the ref, because writing into an object
    *  handed in here would be this hook mutating its own argument. */
   setPendingView: (view: ShareView | null) => void;
-  /** Roadmap 017: mirrors of `content`/`loadedContent` for the hashchange
-   *  listener, which is registered once (empty deps) and would otherwise
-   *  close over the state from that first render. */
-  contentRef: { readonly current: string };
-  loadedContentRef: { readonly current: string };
+  /** Roadmap 017: whether the user has typed since the last authoritative
+   *  load, as a ref for the hashchange listener — registered once (empty deps),
+   *  it would otherwise close over the state from that first render. */
+  hasUnsavedEditsRef: { readonly current: boolean };
   /** Assembles the CURRENT app state (config + view + optional simulator
    *  inputs) for encoding — the view-cluster knowledge stays in App.tsx. */
   buildShareState: (sim?: ShareSimulator) => Promise<ShareState>;
@@ -199,7 +198,7 @@ export function useShareLink(oauthConfig: OAuthConfig | null, host: ShareLinkHos
   // idiom as `loadShareTokenRef`); reading through a ref keeps the effects'
   // dependency lists honest without re-registering them every render.
   // Spelled out rather than through `useLatestRef`: the effects below read
-  // `hostRef.current.contentRef` etc., and `exhaustive-deps` only knows a
+  // `hostRef.current.hasUnsavedEditsRef` etc., and `exhaustive-deps` only knows a
   // `.current` read is not a dependency when it can see the `useRef()` call
   // itself — routed through a custom hook it demands the DEREFERENCED value in
   // the list, which is the one thing that must never be in there.
@@ -504,7 +503,7 @@ export function useShareLink(oauthConfig: OAuthConfig | null, host: ShareLinkHos
   // whether loading it would clobber unsaved edits; `event.oldURL` is what
   // lets a declined confirm restore exactly the hash that was showing before
   // the navigation, so the address bar never lies about what's on screen.
-  // Registered once — `contentRef`/`loadedContentRef` (via `hostRef`) and
+  // Registered once — `hasUnsavedEditsRef` (via `hostRef`) and
   // `loadShareTokenRef` keep it reading current state despite that, so the
   // dependency list holds only identity-pinned values: that ref object and
   // `writeHash`'s `useCallback([])`.
@@ -513,7 +512,7 @@ export function useShareLink(oauthConfig: OAuthConfig | null, host: ShareLinkHos
       const decision = decideHashChangeAction(
         window.location.hash,
         lastWrittenTokenRef.current,
-        hostRef.current.contentRef.current !== hostRef.current.loadedContentRef.current,
+        hostRef.current.hasUnsavedEditsRef.current,
       );
       if (decision.action === "ignore") {
         return;

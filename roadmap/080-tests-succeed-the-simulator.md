@@ -81,6 +81,9 @@ nothing selected is the old peer-feature entrance, and it goes.
   subject is a rule, and the detail view is where a rule's clauses are
   explained.
 - **`mergeStepIndex` / `view.simStep`** share plumbing is untouched.
+  (Superseded by [094](094-the-merge-stepper-retires.md), which retired the
+  merge stepper: the index plumbing is gone and `simStep` is decoded and
+  ignored. The line stays as written — a ruling records what was true then.)
 
 ## Consequences worth stating
 

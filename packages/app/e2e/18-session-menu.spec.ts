@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { openSessionMenu, themeSwitch } from "./helpers";
+import { gotoAppAtDefaultConfig, openSessionMenu, themeSwitch } from "./helpers";
 
 /**
  * Roadmap 066 — the header's session menu.
@@ -17,8 +17,7 @@ test.describe("session menu (066)", () => {
   test("opens from the header corner, holds the theme switch and the project links", async ({
     page,
   }) => {
-    await page.goto("/");
-    await expect(page.locator(".cm-content")).toContainText("config:recommended");
+    await gotoAppAtDefaultConfig(page);
 
     // The corner is one control. Before 066 it was three, and the GitHub
     // session was not in the header at all.
@@ -37,8 +36,7 @@ test.describe("session menu (066)", () => {
   });
 
   test("Escape closes it and hands focus back to the trigger", async ({ page }) => {
-    await page.goto("/");
-    await expect(page.locator(".cm-content")).toContainText("config:recommended");
+    await gotoAppAtDefaultConfig(page);
 
     const trigger = page.locator(".app-header-tools .session-menu-trigger");
     await openSessionMenu(page);
@@ -55,8 +53,7 @@ test.describe("session menu (066)", () => {
   });
 
   test("a click outside closes it", async ({ page }) => {
-    await page.goto("/");
-    await expect(page.locator(".cm-content")).toContainText("config:recommended");
+    await gotoAppAtDefaultConfig(page);
 
     await openSessionMenu(page);
     // Roadmap 075: the subtitle this used to click moved into the landing's

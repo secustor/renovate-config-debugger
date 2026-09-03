@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { useLatestRef } from "./use-latest-ref";
-import { isTextEditingTarget } from "@/hooks/scroll-ergonomics";
+import { isTextEditingTarget } from "@/lib/keyboard-target";
 import { overlayKeyboardOwned } from "@/lib/escape-stack";
 import { matchShortcut, type Shortcut } from "@/lib/shortcuts";
 

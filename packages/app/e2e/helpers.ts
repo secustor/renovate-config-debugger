@@ -1,5 +1,21 @@
 import { expect, type Locator, type Page } from "@playwright/test";
 import type { ResultsTabId } from "../src/data/results-tabs";
+// No cycle: fixtures.ts imports only src/lib/share and tools/test/share-wire.
+import { encodeShareFragment } from "./fixtures";
+
+/**
+ * Lands on the app and waits for the default config to be in the editor — the
+ * preamble a spec that starts from a cold visit opens with.
+ *
+ * The default editor content (`config:recommended`) needs no fixture: it is
+ * bundled with Renovate, so resolving it needs no network. The wait is the
+ * "app is mounted and idle" signal; a spec that instead drives a run waits
+ * through `runAndAwaitResult`, so it does not need this one.
+ */
+export async function gotoAppAtDefaultConfig(page: Page): Promise<void> {
+  await page.goto("/");
+  await expect(page.locator(".cm-content")).toContainText("config:recommended");
+}
 
 /**
  * Replaces the CodeMirror editor's whole content with `text`.
@@ -282,6 +298,28 @@ export async function openSimulator(page: Page): Promise<Locator> {
 export async function simulateQuickFill(simulator: Locator, label: string): Promise<void> {
   await simulator.getByRole("button", { name: label }).click();
   await simulator.getByRole("button", { name: /^Simulate/ }).click();
+}
+
+/**
+ * The preamble three simulator suites open with: a share link carrying
+ * `config`, the Tests tab's simulator, a quick-fill chip, and the wait for the
+ * verdict block that says the run finished.
+ *
+ * Returns the simulator card, since every caller's next line asks it something.
+ * A spec that has to do something BETWEEN the visit and the simulator (04's
+ * `clearStarterPins`, say) spells the four steps out instead — a callback
+ * parameter would buy that one site nothing.
+ */
+export async function simulateFromLink(
+  page: Page,
+  config: string,
+  chip = "npm dependency",
+): Promise<Locator> {
+  await page.goto(await encodeShareFragment({ config }));
+  const simulator = await openSimulator(page);
+  await simulateQuickFill(simulator, chip);
+  await expect(page.locator(".sim-verdict-block")).toBeVisible({ timeout: 15_000 });
+  return simulator;
 }
 
 /**

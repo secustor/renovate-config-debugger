@@ -57,7 +57,6 @@ function Harness({
   // Every callback is required (the shell always passes all of them), so the
   // harness supplies the whole set; the ones no assertion here reads are inert
   // stubs rather than absent props.
-  const [mergeStepIndex, setMergeStepIndex] = useState(0);
   return (
     <TestsPanel
       result={result}
@@ -74,8 +73,6 @@ function Harness({
       simRequest={simRequest ?? null}
       onCopySimLink={() => Promise.resolve()}
       onShare={() => Promise.resolve()}
-      mergeStepIndex={mergeStepIndex}
-      onMergeStepChange={setMergeStepIndex}
       repoDeps={repoDeps}
       onLoadRepoDeps={() => undefined}
       repoConnect={repoConnect}
@@ -83,7 +80,7 @@ function Harness({
   );
 }
 
-async function pinReact(view: ReturnType<typeof render>): Promise<void> {
+async function pinReact(view: ReturnType<typeof render>): Promise<HTMLElement> {
   fireEvent.change(view.getByLabelText("packageName", { exact: true }), {
     target: { value: "react" },
   });
@@ -94,7 +91,13 @@ async function pinReact(view: ReturnType<typeof render>): Promise<void> {
     target: { value: "17.0.1" },
   });
   fireEvent.click(view.getByRole("button", { name: "Pin as a standing test" }));
-  await waitFor(() => expect(view.container.querySelector(".pin-card")).not.toBeNull());
+  return await waitFor(() => {
+    const card = view.container.querySelector<HTMLElement>(".pin-card");
+    if (!card) {
+      throw new Error("pinning produced no card");
+    }
+    return card;
+  });
 }
 
 /**
@@ -119,12 +122,8 @@ it("names the nested preset that wrote a matched rule, not the extend it arrived
     injectedPresets: NESTED_PRESETS,
   });
   const view = render(<Harness result={result} />);
-  await pinReact(view);
+  const card = await pinReact(view);
 
-  const card = view.container.querySelector<HTMLElement>(".pin-card");
-  if (!card) {
-    throw new Error("pinning produced no card");
-  }
   await waitFor(() => expect(card.textContent).toContain("grouped as “react”"));
   fireEvent.click(within(card).getByRole("button", { expanded: false }));
   expect(card.textContent).toContain("github>test-org/leaf");
@@ -142,12 +141,8 @@ it("opens on the pins list, pins a dependency from the Add-a-test form, and chec
   expect(view.container.querySelector(".pin-add-panel")).not.toBeNull();
   expect(view.queryByText("Update simulator")).toBeNull();
 
-  await pinReact(view);
+  const card = await pinReact(view);
 
-  const card = view.container.querySelector<HTMLElement>(".pin-card");
-  if (!card) {
-    throw new Error("pinning produced no card");
-  }
   expect(card.textContent).toContain("react");
   // The outcome, in the run's own terms: the rule that groups react matched,
   // and the header sentence carries the funnel's counts.
@@ -200,11 +195,7 @@ it("re-checks the pins against a NEW run without being asked", async () => {
 it("opens a pin in the full simulator, pre-filled, and comes back", async () => {
   const result = await run();
   const view = render(<Harness result={result} />);
-  await pinReact(view);
-  const card = view.container.querySelector<HTMLElement>(".pin-card");
-  if (!card) {
-    throw new Error("pinning produced no card");
-  }
+  const card = await pinReact(view);
   fireEvent.click(within(card).getByRole("button", { expanded: false }));
   fireEvent.click(within(card).getByRole("button", { name: "open in simulator →" }));
 

@@ -185,8 +185,11 @@ function RuleEvidenceBody({
  * plane (`.option-card` — raised surface, popover shadow, viewport-clamped
  * placement), because an in-place card would be clipped by the thread's own
  * box and would re-anchor to any ancestor that gains containment (035).
+ *
+ * Module-private: `RuleEvidenceAnchor` below is the only way in, so the card is
+ * always rendered into the anchor's `openCard` slot with its dismissal wiring.
  */
-export function RuleEvidenceCard({
+function RuleEvidenceCard({
   evidence,
   anchor,
   onClose,

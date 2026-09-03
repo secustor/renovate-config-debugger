@@ -1,120 +1,12 @@
 import { fireEvent, render } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { claimModalKeyboard, ESCAPE_PRIORITY, pushEscapeLayer } from "@/lib/escape-stack";
-import { isTextEditingTarget, mayOwnNativePopup, useHomeEndPageScroll } from "./scroll-ergonomics";
+import { useHomeEndPageScroll } from "./scroll-ergonomics";
 
 /**
- * Roadmap 068 — `isTextEditingTarget` is shared by the 016 Home/End page-scroll
- * guard and the bare-key jump layer (`useShortcut`, `useTabDigits`), and
- * `mayOwnNativePopup` is what the Escape ladder yields to. Both need real DOM
- * elements (`instanceof HTMLElement`, `.tagName`, `.closest`), which the
- * node-environment `unit` project doesn't have — hence `.test.tsx` here, to land
- * in the jsdom `render` project.
- *
- * The editor half is module-private and is exercised through
- * `isTextEditingTarget`, its only caller — see the note on it.
+ * Roadmap 016/075 — the Home/End page-scroll hook. The target predicates it
+ * asks are tested next door, in `lib/keyboard-target.test.tsx`.
  */
-
-function input(type?: string): HTMLInputElement {
-  const el = document.createElement("input");
-  if (type !== undefined) {
-    el.type = type;
-  }
-  return el;
-}
-
-describe("isTextEditingTarget", () => {
-  it("counts a free-text input as typing", () => {
-    expect(isTextEditingTarget(input())).toBe(true); // no `type` = "text"
-    expect(isTextEditingTarget(input("text"))).toBe(true);
-    expect(isTextEditingTarget(input("password"))).toBe(true);
-    expect(isTextEditingTarget(input("search"))).toBe(true);
-    expect(isTextEditingTarget(input("email"))).toBe(true);
-  });
-
-  it("does NOT count a checkbox, radio or other non-text input as typing", () => {
-    // Roadmap 068 regression: a focused filter checkbox (EffectiveConfig.tsx,
-    // PresetTree.tsx) must not silently swallow `?`, `1`-`7` or `e`/`r`.
-    expect(isTextEditingTarget(input("checkbox"))).toBe(false);
-    expect(isTextEditingTarget(input("radio"))).toBe(false);
-    expect(isTextEditingTarget(input("button"))).toBe(false);
-    expect(isTextEditingTarget(input("submit"))).toBe(false);
-    expect(isTextEditingTarget(input("range"))).toBe(false);
-    expect(isTextEditingTarget(input("color"))).toBe(false);
-  });
-
-  it("keeps a checkbox eligible for the 016 Home/End page-scroll behaviour", () => {
-    // Same predicate, opposite consumer: `useHomeEndPageScroll` bails out when
-    // this returns true, so a focused checkbox must let Home/End scroll the
-    // page rather than do nothing.
-    expect(isTextEditingTarget(input("checkbox"))).toBe(false);
-  });
-
-  it("still counts textarea and select as typing", () => {
-    expect(isTextEditingTarget(document.createElement("textarea"))).toBe(true);
-    // A `<select>`'s native type-ahead must keep beating the bare-key layer.
-    expect(isTextEditingTarget(document.createElement("select"))).toBe(true);
-  });
-
-  it("counts a NON-text input inside the editor — the search panel's toggles", () => {
-    // Roadmap 068 review: `basicSetup` installs `searchKeymap` and the sheet
-    // advertises ⌘F, and `@codemirror/search` renders match-case, regexp and
-    // by-word as checkboxes INSIDE `.cm-editor`. Without falling through to the
-    // editor check, End scrolled the editor off screen and `1`-`7` switched the
-    // results tab while the user was mid-search.
-    const cmRoot = document.createElement("div");
-    cmRoot.className = "cm-editor";
-    const toggle = input("checkbox");
-    cmRoot.appendChild(toggle);
-    expect(isTextEditingTarget(toggle)).toBe(true);
-    // …and the same checkbox outside the editor still isn't typing, which is
-    // the filter-checkbox case above.
-    expect(isTextEditingTarget(input("checkbox"))).toBe(false);
-  });
-
-  it("counts the CodeMirror editor and its descendants as typing", () => {
-    // `isContentEditable` itself is jsdom's own concern (unsupported in this
-    // jsdom version, which is a jsdom limitation, not app behavior) — the
-    // `.cm-editor` ancestor check below is what this codebase can assert.
-    const cmRoot = document.createElement("div");
-    cmRoot.className = "cm-editor";
-    const cmChild = document.createElement("div");
-    cmRoot.appendChild(cmChild);
-    expect(isTextEditingTarget(cmChild)).toBe(true);
-    expect(isTextEditingTarget(cmRoot)).toBe(true);
-  });
-
-  it("rejects non-element targets and plain elements", () => {
-    expect(isTextEditingTarget(null)).toBe(false);
-    expect(isTextEditingTarget(document.createElement("button"))).toBe(false);
-    expect(isTextEditingTarget(window)).toBe(false);
-  });
-});
-
-describe("mayOwnNativePopup", () => {
-  it("counts an input wired to a datalist, whose popup the page cannot see", () => {
-    // The simulator's `datasource` / `manager` fields (047). Escape there
-    // dismisses the native suggestions and Enter accepts one, so the Escape
-    // ladder and the form both stand aside rather than guess whether the popup
-    // is up — nothing in the page can find out.
-    const el = input("text");
-    el.setAttribute("list", "datasources");
-    expect(mayOwnNativePopup(el)).toBe(true);
-  });
-
-  it("counts nothing else — a plain field's Escape still reaches the ladder", () => {
-    // The constraint round three established: yielding for "any text input" is
-    // what left the return pill and the session menu undismissable from a form
-    // field. A `<select>` is excluded deliberately too: its popup opens only on
-    // a deliberate act, never as a side effect of typing.
-    expect(mayOwnNativePopup(input("text"))).toBe(false);
-    expect(mayOwnNativePopup(document.createElement("select"))).toBe(false);
-    expect(mayOwnNativePopup(document.createElement("textarea"))).toBe(false);
-    expect(mayOwnNativePopup(null)).toBe(false);
-    expect(mayOwnNativePopup(window)).toBe(false);
-  });
-});
-
 function HomeEndHarness() {
   useHomeEndPageScroll();
   return null;

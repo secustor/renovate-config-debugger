@@ -92,12 +92,17 @@ function PinCardBody({
   // row's "probe" button is the other writer.
   const [probeQuery, setProbeQuery] = useState("");
   if (!outcome || !evaluation?.sim) {
+    // The door to the full simulator stays open here too: a pin that could not
+    // be checked is exactly where a reader most wants the deeper surface.
     return (
-      <p className="empty-note">
-        {evaluation?.error
-          ? `This pin could not be checked: ${evaluation.error}`
-          : "Checking this pin against the rules…"}
-      </p>
+      <div className="pin-body">
+        <p className="empty-note">
+          {evaluation?.error
+            ? `This pin could not be checked: ${evaluation.error}`
+            : "Checking this pin against the rules…"}
+        </p>
+        <OpenInSimulatorLink onClick={onOpenInSimulator} />
+      </div>
     );
   }
   return (

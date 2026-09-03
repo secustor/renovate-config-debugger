@@ -214,9 +214,9 @@ export function App() {
     onJumpToSimRule,
   } = useResultsTab();
   // Roadmap 086 follow-up: what the reader is looking AT within a run — the
-  // stage, the preset node, the two stepper indices — plus the three behaviours
-  // that only make sense together: the new-run reset, a decoded link's override
-  // of it, and the encode back into a link.
+  // stage, the preset node, the migration stepper's index — plus the three
+  // behaviours that only make sense together: the new-run reset, a decoded
+  // link's override of it, and the encode back into a link.
   const runViewSelection = useRunViewSelection({ result, setTab });
   const {
     selectedStage,
@@ -226,8 +226,6 @@ export function App() {
     setSelectedNodeId,
     migrationStepIndex,
     setMigrationStepIndex,
-    mergeStepIndex,
-    setMergeStepIndex,
     setPendingView,
   } = runViewSelection;
   const [optionIndex, setOptionIndex] = useState<OptionIndex | null>(null);
@@ -286,11 +284,10 @@ export function App() {
     const id = window.setTimeout(preloadRunChunks, 1_000);
     return () => window.clearTimeout(id);
   }, []);
-  // Roadmap 017: mirrors of `content`/`loadedContent` for the hashchange
-  // listener (inside `useShareLink`), which is registered once (empty deps)
-  // and would otherwise close over the state from that first render.
-  const contentRef = useLatestRef(content);
-  const loadedContentRef = useLatestRef(configDoc.loadedContent);
+  // Roadmap 017: a mirror of `canRevert` for the hashchange listener (inside
+  // `useShareLink`), which is registered once (empty deps) and would otherwise
+  // close over the state from that first render.
+  const hasUnsavedEditsRef = useLatestRef(configDoc.canRevert);
   // Roadmap 033: the whole share/hash/decode cluster — `shareError` feeds the
   // prominent, top-of-page banner below (not the dismissable notice), so a
   // broken link never reads as "nothing happened"; `simRequest` is handed to
@@ -329,8 +326,7 @@ export function App() {
       // header states for everything else declared later in the body.
       applyShareRepo: (repo) => repoProvenance.adoptShareClaim(repo),
       setPendingView,
-      contentRef,
-      loadedContentRef,
+      hasUnsavedEditsRef,
       buildShareState,
     },
   );
@@ -1205,15 +1201,6 @@ export function App() {
     };
   }
 
-  // Roadmap 077: the copied state (and its receipt popover) live in the
-  // header's ShareButton — this is only the share-link build, which mirrors
-  // the URL into the address bar too. Stable identity so the memoized
-  // consumers (TestsPanel via ResultsColumn) don't re-render per keystroke;
-  // `buildShareLinkAndCopy` is itself a stable useCallback.
-  const onCopyLink = useCallback(async () => {
-    await buildShareLinkAndCopy();
-  }, [buildShareLinkAndCopy]);
-
   /**
    * Roadmap 086: the run-scoped view cluster, provided once. The memo's deps
    * are exactly the context's admission rule — run commits, tab/stage/node/
@@ -1267,9 +1254,7 @@ export function App() {
       onRuleFocused,
       simRequest: activeSimRequest,
       onCopySimLink: buildShareLinkAndCopy,
-      onShare: onCopyLink,
-      mergeStepIndex,
-      onMergeStepChange: setMergeStepIndex,
+      onShare: buildShareLinkAndCopy,
       repoDeps: repoDepsView,
       onLoadRepoDeps: ensureRepoDeps,
       repoConnect,
@@ -1319,8 +1304,6 @@ export function App() {
       onRuleFocused,
       activeSimRequest,
       buildShareLinkAndCopy,
-      onCopyLink,
-      mergeStepIndex,
       repoDepsView,
       ensureRepoDeps,
       repoConnect,
@@ -1329,14 +1312,13 @@ export function App() {
       ruleProvenance,
       onJumpToSimRule,
       onApplyFix,
-      // The four setters now arrive through `useRunViewSelection` rather than
+      // These setters now arrive through `useRunViewSelection` rather than
       // straight from `useState`, so the rule can no longer prove they are
       // stable. They are — same setters, one hop further — and listing them
       // costs nothing, since a stable identity never invalidates the memo.
       setSelectedStage,
       setSelectedNodeId,
       setMigrationStepIndex,
-      setMergeStepIndex,
       setPipelinePhase,
     ],
   );
@@ -1407,7 +1389,7 @@ export function App() {
         {/* The run half of the header (verdict, digest links) reads the
             run-view context; only the session half stays props (086). */}
         <AppShellHeader
-          onShare={result ? onCopyLink : undefined}
+          onShare={result ? buildShareLinkAndCopy : undefined}
           oauthConfigured={oauthConfigured}
           signedIn={signedIn}
           authUser={authUser}

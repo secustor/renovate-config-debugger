@@ -21,6 +21,8 @@ export default defineConfig({
   testDir: "./e2e",
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
+  // Deliberately zero: a retried e2e masks a flake, and this repo's lint tier
+  // has no advisory level for one to hide in.
   retries: 0,
   workers: process.env.CI ? 1 : undefined,
   reporter: process.env.CI ? [["list"], ["html", { open: "never" }]] : "list",
@@ -35,7 +37,10 @@ export default defineConfig({
   globalTimeout: 20 * 60_000,
   use: {
     baseURL: BASE_URL,
-    trace: "on-first-retry",
+    // Not `on-first-retry`: with `retries: 0` that captures nothing, ever. The
+    // HTML reporter copies the attachment into `playwright-report/data/`, which
+    // is the artifact CI already uploads.
+    trace: "retain-on-failure",
     actionTimeout: 15_000,
     navigationTimeout: 30_000,
   },

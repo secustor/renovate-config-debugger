@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { gotoAppAtDefaultConfig } from "./helpers";
 
 /**
  * Roadmap 088 — the "verify this build" popover.
@@ -8,8 +9,7 @@ import { expect, test } from "@playwright/test";
  */
 test.describe("build-info popover (088)", () => {
   test("clicks inside the panel keep it open; outside closes it", async ({ page }) => {
-    await page.goto("/");
-    await expect(page.locator(".cm-content")).toContainText("config:recommended");
+    await gotoAppAtDefaultConfig(page);
 
     const trigger = page.getByRole("button", { name: "About this build" });
     test.skip((await trigger.count()) === 0, "build carries no baked identity");

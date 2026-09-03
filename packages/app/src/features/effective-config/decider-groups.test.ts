@@ -20,7 +20,7 @@ import { presetLayer, provEntry, provStep } from "@tools/test/key-provenance";
 
 const DEFAULTS: ProvenanceLayer = { kind: "defaults" };
 const REPO: ProvenanceLayer = { kind: "repo" };
-const PRESET: ProvenanceLayer = presetLayer("config:recommended");
+const PRESET: ProvenanceLayer = presetLayer("p1", "config:recommended");
 
 it("credits the last layer that actually changed the value", () => {
   expect(decidedBy(provEntry("a", [provStep(DEFAULTS), provStep(PRESET), provStep(REPO)]))).toBe(

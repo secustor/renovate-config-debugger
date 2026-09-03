@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { fixture, runCli, runJson } from "../test-harness";
+import { fixture, runCli, runJson } from "../../test/harness";
 
 /** One config, two dependencies: only `react` picks up the rule's own
  *  description, so B's array is A's plus one sentence. */

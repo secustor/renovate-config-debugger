@@ -1,4 +1,4 @@
-import { PIN_FORM_ID } from "./datalist-ids";
+import { PIN_FORM_ID } from "./dom-ids";
 import { motionScrollOptions } from "@/lib/motion";
 
 /**

@@ -1,6 +1,7 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import { IGNORED_PRESET_CONFIG, SEMANTIC_COMMITS_CONFIG } from "./fixtures";
 import {
+  gotoAppAtDefaultConfig,
   luminance,
   must,
   openMigrateStage,
@@ -38,8 +39,7 @@ test.describe("theme switcher (037)", () => {
   test("Dark overrides the OS scheme, survives a reload, and Auto gives it back", async ({
     page,
   }) => {
-    await page.goto("/");
-    await expect(page.locator(".cm-content")).toContainText("config:recommended");
+    await gotoAppAtDefaultConfig(page);
     expect(await bodyBackground(page)).toBe(LIGHT_BG);
 
     // Roadmap 066: the switch lives in the header's session menu now.
@@ -81,8 +81,7 @@ test.describe("theme switcher (037)", () => {
    * one measures the editor's own surface.
    */
   test("the config editor follows the switcher, not the OS scheme", async ({ page }) => {
-    await page.goto("/");
-    await expect(page.locator(".cm-content")).toContainText("config:recommended");
+    await gotoAppAtDefaultConfig(page);
 
     const editor = page.locator(".cm-editor");
     const editorBg = () => editor.evaluate((el) => getComputedStyle(el).backgroundColor as string);
@@ -109,8 +108,7 @@ test.describe("theme switcher (037)", () => {
    * 12-layout-regressions contrast test (OS-emulated dark) cannot show.
    */
   test("the diff follows the switcher, not the OS scheme", async ({ page }) => {
-    await page.goto("/");
-    await expect(page.locator(".cm-content")).toContainText("config:recommended");
+    await gotoAppAtDefaultConfig(page);
     await setEditorContent(page, SEMANTIC_COMMITS_CONFIG);
     await runAndAwaitResult(page);
     await openMigrateStage(page);
@@ -137,8 +135,7 @@ test.describe("theme switcher (037)", () => {
  * show both modes with exactly one of them marked active.
  */
 test("the diff chrome names the active view and offers Copy result (036)", async ({ page }) => {
-  await page.goto("/");
-  await expect(page.locator(".cm-content")).toContainText("config:recommended");
+  await gotoAppAtDefaultConfig(page);
   await setEditorContent(page, SEMANTIC_COMMITS_CONFIG);
   await runAndAwaitResult(page);
   await openTab(page, "pipeline");

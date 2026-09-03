@@ -1,7 +1,7 @@
 import { describe, expect, test } from "vitest";
 import { parseCommandArgs } from "./args";
 import { endpointTokenPolicy, takeInputFile, tokensFromEnv } from "./run-input";
-import { fixture, runCli, runJson } from "./test-harness";
+import { fixture, runCli, runJson } from "../test/harness";
 
 /** Reaching the config — and what a config that cannot be read or parsed does
  *  to a run. */

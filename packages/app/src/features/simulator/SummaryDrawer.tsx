@@ -13,9 +13,9 @@ import type { ReactNode, RefObject } from "react";
  * intact — the caret, the keyboard toggle and the disclosure role all come
  * from the platform rather than an ARIA re-implementation.
  *
- * The body renders only while open: the merge drawer's step-through and its
- * diff widgets are the most expensive thing on the tab, and a closed drawer
- * should not pay for them.
+ * The body renders only while open: the rules drawer's full rule list and the
+ * merge drawer's stop list with its resolved-config render are the most
+ * expensive thing on the tab, and a closed drawer should not pay for them.
  */
 export function SummaryDrawer({
   title,

@@ -12,7 +12,7 @@ import type { ShareSimulator } from "@/lib/share";
 import { changedDependencyKeys } from "@/lib/simulation-changes";
 import { buildNoInputCaveat, buildVerdictSegments } from "@/lib/verdict-sentence";
 import type { ErrorTranslationLib } from "@/platform/run";
-import { SIM_FORM_ID } from "./datalist-ids";
+import { SIM_FORM_ID } from "./dom-ids";
 import { DescriptorActions } from "./DescriptorActions";
 import { buildMergeStops } from "./merge-stops";
 import { EmptyFormGuard, PinLimitNote } from "./FormNotes";
@@ -83,8 +83,6 @@ export const RuleSimulator = memo(function RuleSimulator({
   onCopySimLink,
   onAddPin,
   pinCount,
-  mergeStepIndex,
-  onMergeStepChange,
 }: {
   result: TraceResult;
   /** Roadmap 013: a rule row's provenance chip → the contributing preset node in the tree. */
@@ -115,10 +113,6 @@ export const RuleSimulator = memo(function RuleSimulator({
   /** How many tests are pinned, so the quiet action can hide at `MAX_PINS`
    *  exactly as it does in the panel. */
   pinCount: number;
-  /** Roadmap 044: the merge stepper's index, owned by App so a share link can
-   *  restore it (mirrors `migrationStepIndex`). Absent = uncontrolled. */
-  mergeStepIndex: number;
-  onMergeStepChange: (index: number) => void;
 }) {
   const ruleAttribution = useRuleProvenance(result);
   // Roadmap 069 (PR 5): the author's description of every described rule, from
@@ -158,7 +152,7 @@ export const RuleSimulator = memo(function RuleSimulator({
     setFocusHint,
     simulate,
     simulateRef,
-  } = useSimulationRun({ result, onMergeStepChange, guard, clearGuard });
+  } = useSimulationRun({ result, guard, clearGuard });
   // Roadmap 054 layer 4: thread expansion + the return pill. Declared BEFORE
   // the share-link request so its reset effect (keyed on the run) is
   // registered first: a link arms the thread it wants, the auto-run it starts
@@ -182,8 +176,9 @@ export const RuleSimulator = memo(function RuleSimulator({
     rulesDrawerRef,
     mergeDrawerRef,
     jumpToRules,
+    jumpToReplay,
     jumpToStep,
-  } = useSimulatorDrawers({ mergeStepIndex, onMergeStepChange });
+  } = useSimulatorDrawers();
   // Roadmap 013: which config level contributed each merged rule — the rule
   // rows' provenance chips, the drawer's badge row, and the provenance filter
   // facet (the successor to "my rules only") all read it. Declared here rather
@@ -250,7 +245,7 @@ export const RuleSimulator = memo(function RuleSimulator({
     [sim, finalConfig],
   );
 
-  // Roadmap 046: the merge timeline's stops — shared between the timeline
+  // Roadmap 046: the merge replay's stops — shared between the replay list
   // itself and the verdict ledger's "step N of M →" jump links.
   const mergeStops = useMemo(
     () => (sim ? buildMergeStops(sim, layerByIndex, onSelectPreset) : []),
@@ -260,9 +255,9 @@ export const RuleSimulator = memo(function RuleSimulator({
     const i = mergeStops.findIndex((s) => s.kind === "flatten");
     return i === -1 ? undefined : i;
   }, [mergeStops]);
-  // No merge recorded and no matched rule → no sequence to walk (matches the
-  // 044 stepper's own guard); the final config falls back to the disclosure.
-  const showTimeline = (sim?.mergeSteps.length ?? 0) > 0;
+  // No merge recorded and no matched rule → no sequence at all (the 044
+  // stepper's own guard); the final config falls back to the disclosure.
+  const showReplay = (sim?.mergeSteps.length ?? 0) > 0;
 
   // Roadmap 032: these four all walk the (potentially several-hundred-entry)
   // rule list and depend only on the last RUN, never on the live form — so
@@ -339,13 +334,6 @@ export const RuleSimulator = memo(function RuleSimulator({
     }
     // Roadmap 036: the copied state lives in CopyButton now.
     await onCopySimLink(share);
-  }
-
-  /** Roadmap 054: the verdict foot's "build replay, K stops" link — the
-   *  demoted drawer opens where the reader last left it (the first stop on a
-   *  fresh run), not at a stop they never asked for. */
-  function jumpToReplay() {
-    jumpToStep(mergeStepIndex);
   }
 
   /** Every simulation the PANEL starts goes through here — run it now, or hold
@@ -507,7 +495,7 @@ export const RuleSimulator = memo(function RuleSimulator({
               }}
               flattened={sim.flattened}
               consumed={consumedBlocks}
-              flattenStopIndex={showTimeline ? flattenStopIndex : undefined}
+              flattenStopIndex={showReplay ? flattenStopIndex : undefined}
               replayStops={mergeStops.length}
               dep={
                 simForm
@@ -520,9 +508,9 @@ export const RuleSimulator = memo(function RuleSimulator({
                   : null
               }
               onSelectPreset={onSelectPreset}
-              onJumpToStep={showTimeline ? jumpToStep : undefined}
+              onJumpToStep={showReplay ? jumpToStep : undefined}
               onJumpToRules={jumpToRules}
-              onJumpToReplay={showTimeline ? jumpToReplay : undefined}
+              onJumpToReplay={showReplay ? jumpToReplay : undefined}
               evidenceFor={evidenceFor}
               // The popover's footer lands on the rule ROW itself — the 013
               // focus wiring opens the drawer, clears whatever filter hides
@@ -575,10 +563,8 @@ export const RuleSimulator = memo(function RuleSimulator({
             <SimMergeDrawer
               finalDependencyConfig={sim.finalDependencyConfig}
               stops={mergeStops}
-              showTimeline={showTimeline}
+              showReplay={showReplay}
               changedKeys={changedKeys}
-              mergeStepIndex={mergeStepIndex}
-              onMergeStepChange={onMergeStepChange}
               open={mergeOpen}
               onToggle={setMergeOpen}
               detailsRef={mergeDrawerRef}

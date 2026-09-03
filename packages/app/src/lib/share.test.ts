@@ -149,7 +149,14 @@ describe("033: one sanitizer — encode∘decode fixpoints", () => {
     expect(second.payload.sim).toEqual(first.payload.sim);
   });
 
-  test("simStep (044) round-trips alongside the migrate step and the sim inputs", async () => {
+  /**
+   * Roadmap 094 retired the merge stepper `simStep` drove, so the field is
+   * DECODE-ONLY now — the `tab: "simulator"` precedent (080). Links carrying
+   * one are already out there: the codec must still carry it through unchanged,
+   * and the app then restores nothing from it (`use-run-view-selection` reads
+   * it nowhere, and nothing encodes a new one).
+   */
+  test("simStep (044) still passes the codec unchanged — decoded, then ignored (094)", async () => {
     const token = await encodeShare(
       minimalState({
         view: { stage: "merge", step: 0, simStep: 2, tab: "tests" },
@@ -329,9 +336,11 @@ describe("030: view/sim are sanitized per-field, never hard-fail the payload", (
     expect(result.payload.view).toEqual({ stage: "preset" });
   });
 
-  // Roadmap 044: the new field is additive within v2 in BOTH directions — a
+  // Roadmap 044: the field is additive within v2 in BOTH directions — a
   // pre-044 link (no `simStep`) decodes exactly as it did, and a hand-edited or
   // future-mangled `simStep` is dropped on its own like every other view field.
+  // Roadmap 094 retired the stepper it addressed without changing either half:
+  // the sanitizer still runs, and what survives it is simply ignored.
   test("a pre-044 link without simStep decodes unchanged; a malformed simStep is dropped alone", async () => {
     const old = await rawEncodeToken(
       taggedPayload({ view: { stage: "preset", step: 1, tab: "rewrites" } }),

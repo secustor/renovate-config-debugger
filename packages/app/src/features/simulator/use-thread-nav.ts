@@ -17,7 +17,8 @@ import { useSyncedReset } from "@/hooks/use-synced-reset";
  * The set of open keys is the simulator's, not App's (see RuleSimulator's
  * `copySimLink`): a thread only exists for the LAST run's evidence and several
  * can be open at once, so App owning it would mean App mirroring a Set it has
- * no use for — unlike `mergeStepIndex`, which is a controlled stepper's index.
+ * no use for — unlike `migrationStepIndex`, which is a controlled stepper's
+ * index and does live up there.
  * The consequence is documented where it bites: a jump does not push a history
  * entry, so browser Back does not undo one — the pill is what undoes it.
  */

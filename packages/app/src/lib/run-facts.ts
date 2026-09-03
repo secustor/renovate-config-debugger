@@ -30,9 +30,6 @@ export interface RunFacts {
   /** Validator errors PLUS preset-resolution failures. */
   errorCount: number;
   warningCount: number;
-  /** The snapshot the validator's messages were produced from — see
-   *  {@link validatedConfigOf}. */
-  validatedConfig: Record<string, unknown> | null;
 }
 
 /**
@@ -55,7 +52,6 @@ export function deriveRunFacts(result: TraceResult | null): RunFacts {
   const migrateSteps: TraceEvent[] = [];
   const presetErrors: TraceEvent[] = [];
   let finalMigrated: unknown;
-  let validatedConfig: Record<string, unknown> | null = null;
   for (const event of result?.events ?? []) {
     if (event.stage === "migrate") {
       if (event.kind === "migration-applied") {
@@ -63,9 +59,6 @@ export function deriveRunFacts(result: TraceResult | null): RunFacts {
       } else if (event.kind === "stage-complete") {
         finalMigrated = event.after;
       }
-    } else if (event.stage === "massage" && event.kind === "stage-complete") {
-      // First one wins, matching `validatedConfigOf`'s `find`.
-      validatedConfig ??= (event.after as Record<string, unknown> | undefined) ?? null;
     } else if (event.kind === "preset-error") {
       presetErrors.push(event);
     }
@@ -79,7 +72,6 @@ export function deriveRunFacts(result: TraceResult | null): RunFacts {
     presetCount: presetSummary?.resolved ?? 0,
     errorCount: (result?.errors.length ?? 0) + presetErrors.length,
     warningCount: result?.warnings.length ?? 0,
-    validatedConfig,
   };
 }
 

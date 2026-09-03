@@ -15,21 +15,22 @@ export function useProvenance(result: TraceResult): Provenance | null | undefine
 }
 
 /**
- * Roadmap 051: computes the copyable resolved-config document once the JSON
- * view is active. Mirrors `useProvenance` above — `undefined` = inactive or
- * computing, `null` = unavailable (same guards as provenance). Cheap enough to
- * recompute per option change: a handful of `mergeChildConfig` calls, and the
- * engine chunk is already resident by the time this view can be reached.
+ * Roadmap 051/082: computes the copyable resolved-config document — used by
+ * BOTH the As-JSON view and the toolbar's copy button, so it is NOT gated on
+ * the view. `ready` holds it back only until provenance has settled;
+ * `undefined` = not ready or computing, `null` = unavailable (same guards as
+ * provenance). Cheap enough to recompute per option change: a handful of
+ * `mergeChildConfig` calls, and the engine chunk is already resident by then.
  */
 export function useResolvedConfig(
   result: TraceResult,
-  active: boolean,
+  ready: boolean,
   mode: ResolvedConfigMode,
   includeDefaults: boolean,
 ): ResolvedConfigOutput | null | undefined {
   return useEngineDerivation(
-    [result, active, mode, includeDefaults],
-    active
+    [result, ready, mode, includeDefaults],
+    ready
       ? (engine) => engine.computeResolvedConfig(result, mode, { includeDefaults }) ?? null
       : null,
   );

@@ -1,5 +1,5 @@
 import { readdirSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { dirname, join, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
@@ -30,6 +30,13 @@ describe("vitest project coverage", () => {
       (name) => !name.endsWith(".node.test.ts") && !name.endsWith(".shimmed.test.ts"),
     );
     expect(unassigned).toEqual([]);
+  });
+
+  it("test/ stays flat — both project globs are single-level", () => {
+    // `test/*.…` matches no subdirectory, so a nested suite would satisfy the
+    // naming assertion above and still run in no project at all.
+    const nested = testFilesUnder("test").filter((name) => name.includes(sep));
+    expect(nested).toEqual([]);
   });
 
   it("no colocated src/ test claims an infix that would misdescribe its project", () => {

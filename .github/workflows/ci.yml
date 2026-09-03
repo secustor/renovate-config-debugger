@@ -62,6 +62,8 @@ jobs:
         # `vite dev` serves renovate's transitive deps raw (no CJS interop),
         # a regime neither the Node tests nor the production build exercise.
         run: pnpm --filter @renovate-config-debugger/app check:dev-graph
+      - name: House lint rule specs (tools/)
+        run: pnpm test:tools
 
   build:
     needs: setup

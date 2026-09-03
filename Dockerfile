@@ -38,11 +38,11 @@ WORKDIR /repo
 COPY mise.toml ./
 RUN mise install node pnpm
 
-# Manifests first: dependencies only re-resolve when one of these changes.
+# Manifests first: dependencies only re-resolve when one of these changes. The
+# list is the app build's closure — don't add a package this stage never builds.
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
 COPY packages/app/package.json packages/app/
 COPY packages/engine/package.json packages/engine/
-COPY packages/oauth-worker/package.json packages/oauth-worker/
 # Patches are part of resolution, not of the source tree: pnpm hashes each file
 # in `patchedDependencies` to check it against the lockfile, so they must be
 # here rather than arriving with the `COPY . .` below.

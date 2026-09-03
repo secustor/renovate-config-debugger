@@ -49,3 +49,13 @@ export const PIN_TAB_PANEL_ID = "pin-add-tabpanel";
 export function pinTabId(tab: string): string {
   return `pin-add-tab-${tab}`;
 }
+
+/**
+ * Roadmap 094: a merge stop's anchor. With the positional stepper retired the
+ * replay is a list, so a verdict-card jump lands on the stop's own element
+ * instead of selecting an index — one simulator card is ever mounted, so the
+ * stop's position in that list is identity enough.
+ */
+export function mergeStopId(index: number): string {
+  return `sim-merge-stop-${index}`;
+}

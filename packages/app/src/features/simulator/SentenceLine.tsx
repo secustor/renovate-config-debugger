@@ -1,5 +1,5 @@
 import type { Dispatch, ReactNode, SetStateAction } from "react";
-import { DATASOURCE_LIST_ID } from "./datalist-ids";
+import { DATASOURCE_LIST_ID } from "./dom-ids";
 import type { FormState } from "@/types/simulator";
 
 /**

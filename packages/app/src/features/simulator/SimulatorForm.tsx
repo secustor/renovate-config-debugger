@@ -1,6 +1,6 @@
 import type { Dispatch, KeyboardEvent, SetStateAction } from "react";
-import { mayOwnNativePopup } from "@/hooks/scroll-ergonomics";
-import { DATASOURCE_LIST_ID, MANAGER_LIST_ID, SIM_FORM_ID } from "./datalist-ids";
+import { mayOwnNativePopup } from "@/lib/keyboard-target";
+import { DATASOURCE_LIST_ID, MANAGER_LIST_ID, SIM_FORM_ID } from "./dom-ids";
 import { DescriptorPreview, DescriptorSection } from "./DescriptorPreview";
 import { FieldGroups } from "./FieldGroups";
 import { QuickFillChips } from "./QuickFillChips";

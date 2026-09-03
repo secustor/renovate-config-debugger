@@ -95,7 +95,7 @@ export const EffectiveConfig = memo(function EffectiveConfig({
   // Roadmap 069 (PR 5): the same walk again, read the other way round — one
   // card per string for the As-JSON document, where the sentences are already
   // on screen and the attribution has nowhere else to live. Gated on the view
-  // like `resolvedOutput` below: derived only once the reader opens As-JSON.
+  // — unlike `resolvedOutput` below, these cards are only ever read in As-JSON.
   const descriptionCards = useMemo(
     () =>
       descriptionProvenance && view === "json"

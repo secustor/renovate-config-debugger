@@ -38,7 +38,7 @@ export const DEFAULT_RUN_LIMIT = 3;
  * `kind: "log"` — and NOTHING on the MCP path reads them. The trace's own
  * derivations index `stage-complete`, `migration-applied` and `preset-error`;
  * the preset tree, the provenance replay and the resolved-config projection
- * read no events at all. `rcd run --slice events` does print them, but that is
+ * read no events at all. `rcd run --select events` does print them, but that is
  * the CLI's own one-shot path, which never touches this store.
  *
  * A COPY, never a mutation: the caller still holds the result it handed over,

@@ -1,6 +1,6 @@
 import { fileURLToPath } from "node:url";
-import type { CliIo } from "./io";
-import { main } from "./main";
+import type { CliIo } from "../src/io";
+import { main } from "../src/main";
 
 /**
  * The commands are driven in-process against the same module graph the bin
@@ -74,5 +74,5 @@ export async function runJson<Payload>(
 }
 
 export function fixture(name: string): string {
-  return fileURLToPath(new URL(`../test/fixtures/${name}`, import.meta.url));
+  return fileURLToPath(new URL(`./fixtures/${name}`, import.meta.url));
 }

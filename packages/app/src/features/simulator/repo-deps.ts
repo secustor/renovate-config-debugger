@@ -1,22 +1,15 @@
 /**
- * Roadmap 078 — the From-repository tab's data shapes, and the pure
- * `PackageDependency → FormState` mapping. The DISCOVERY (tree walk, file
- * fetches, extraction) is the app shell's (`app/use-repo-deps.ts`), following
- * the 085 layering precedent: the shell computes the view model, the feature
- * declares its types and draws it — features never import `@/app`, so the
- * types live here and the shell imports them.
+ * Roadmap 078 — the pure `PackageDependency → FormState` mapping for the
+ * From-repository tab. The tab's data shapes are the shared contract in
+ * `@/types/repo`; the DISCOVERY (tree walk, file fetches, extraction) lives in
+ * `./use-repo-deps`.
  */
 import type { ExtractedPackageFile, PackageDependency } from "@renovate-config-debugger/engine";
 import { joinValues } from "./form";
 import type { FormState } from "@/types/simulator";
 import type { RepoDep, RepoDepsView } from "@/types/repo";
 
-/**
- * Where the config on screen was loaded from — recorded by App on a
- * successful repo load (the one gesture that makes "the dependencies of your
- * repo" a meaningful offer). `suppressTokens` rides along so the discovery
- * fetches obey the same untrusted-endpoint guard the load itself did.
- */
+/** The idle view the tab renders before any discovery has run. */
 export const EMPTY_REPO_DEPS: RepoDepsView = {
   status: "idle",
   repo: "",

@@ -15,9 +15,9 @@ import type { MergeStop } from "./merge-stops";
  * pure derivation over the last RUN, no engine change and no UI knowledge.
  *
  * Later merges win, so per key the LAST stop naming it is the winner and every
- * earlier one is an override it beat. `verdict-changes.ts` is a projection of
- * this model, which is the point: the collapsed ledger row and the expanded
- * thread can never disagree about who wrote what.
+ * earlier one is an override it beat. `VerdictThreads.tsx` renders the
+ * collapsed head and the disclosed body from this one model, so they can never
+ * disagree about who wrote what.
  */
 
 /** The stop that had the last word on a key. */
@@ -30,7 +30,7 @@ export interface ThreadWinner {
   /** The winning rule's clause evidence; empty for a flatten stop, which has
    *  the 047 update-type story instead. */
   clauses: ClauseEvaluation[];
-  /** Position on the merge timeline, for the "step N of M →" jump. */
+  /** Position in the merge replay, for the "step N of M →" jump. */
   stopIndex: number;
   stopLabel: string;
 }

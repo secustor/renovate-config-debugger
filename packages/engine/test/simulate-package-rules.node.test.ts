@@ -103,9 +103,7 @@ describe("simulatePackageRules (golden)", () => {
     };
     const dep: DependencyDescriptor = { ...npmDep, updateType: "minor" };
     const simulated = await simulatePackageRules({ config, dep });
-    const oracle = oracleFlatten(
-      await applyPackageRules({ ...config, ...dep, depName: dep.packageName }),
-    );
+    const oracle = oracleFlatten(await applyPackageRules(oracleInput(config, dep)));
     // the update-type block merged up exactly as Renovate computes it
     expect(oracle.automerge).toBe(true);
     expect(oracle.addLabels).toEqual(["auto"]);
@@ -130,11 +128,7 @@ describe("simulatePackageRules (golden)", () => {
       ],
     };
     const simulated = await simulatePackageRules({ config, dep: npmDep });
-    const oracle = await applyPackageRules({
-      ...config,
-      ...npmDep,
-      depName: npmDep.packageName,
-    });
+    const oracle = await applyPackageRules(oracleInput(config, npmDep));
     expect(simulated.rawFinalConfig).toEqual(oracle);
     expect(simulated.rules.map((r) => r.verdict)).toEqual(["no-match", "matched", "matched"]);
     expect(oracle.automerge).toBe(true);
@@ -230,22 +224,14 @@ describe("simulatePackageRules with a `group:` preset extended inside a rule (go
   it("agrees with real applyPackageRules for an in-group and an unrelated dependency", async () => {
     const config = await resolveBroken();
     for (const dep of [jacksonDep, reactDep]) {
-      const oracle = await applyPackageRules({ ...config, ...dep, depName: dep.packageName });
+      const oracle = await applyPackageRules(oracleInput(config, dep));
       const simulated = await simulatePackageRules({ config, dep });
       expect(simulated.rawFinalConfig).toEqual(oracle);
     }
     // The scoping is real, not a simulator artifact: only the jackson dep picks
     // up the rule's option, so the misconfiguration has no global blast radius.
-    const jacksonOracle = await applyPackageRules({
-      ...config,
-      ...jacksonDep,
-      depName: jacksonDep.packageName,
-    });
-    const reactOracle = await applyPackageRules({
-      ...config,
-      ...reactDep,
-      depName: reactDep.packageName,
-    });
+    const jacksonOracle = await applyPackageRules(oracleInput(config, jacksonDep));
+    const reactOracle = await applyPackageRules(oracleInput(config, reactDep));
     expect(jacksonOracle.minimumGroupSize).toBe(5);
     expect(reactOracle.minimumGroupSize).not.toBe(5);
   });
@@ -266,7 +252,7 @@ describe("simulatePackageRules with a `group:` preset extended inside a rule (go
       ],
     };
     for (const dep of [jacksonDep, reactDep]) {
-      const oracle = await applyPackageRules({ ...config, ...dep, depName: dep.packageName });
+      const oracle = await applyPackageRules(oracleInput(config, dep));
       const simulated = await simulatePackageRules({ config, dep });
       expect(simulated.rawFinalConfig).toEqual(oracle);
       const rule = must(simulated.rules[0], "the nested rule's evaluation");

@@ -10,15 +10,11 @@ import { CopyButton } from "@/components/CopyButton";
 import { Term } from "@/components/glossary";
 import { OptionKey } from "@/components/option-docs";
 import { ProvenanceChip } from "@/components/ProvenanceChip";
-import type { SequenceDotLevel } from "./SequenceTimeline";
-import type { StepThroughStep } from "@/components/StepThrough";
-import { UPDATE_TYPE_KEYS } from "@/lib/update-type-keys";
 import { ruleLabel } from "./rule-format";
-import { pluralWord } from "@/lib/format";
 import { ruleRef } from "@/lib/rule-ref";
 
-/** Roadmap 044: the changed keys of one merge step, as inline `<code>` chips
- *  inside the stepper's explanation row. */
+/** Roadmap 044: the changed keys of one merge stop, as inline `<code>` chips
+ *  inside its explanation row. */
 function mergedKeyList(merged: MergedKey[]): ReactNode {
   return merged.map((m, i) => (
     <span key={m.key}>
@@ -31,13 +27,16 @@ function mergedKeyList(merged: MergedKey[]): ReactNode {
 }
 
 /**
- * Roadmap 044/046: one stop of the merge timeline — its chip on the shared
- * sequence grammar and its `StepThrough` step. The sequence is base → each
- * MATCHING rule (in merge order) → update-type flattening (whenever blocks
- * existed, merged up or merely consumed) → the final per-dependency config,
- * which replaces the old "show the full resolved dependency config"
- * disclosure. Non-matching rules are deliberately absent — they merge nothing,
- * and the rule list already explains them clause by clause.
+ * Roadmap 044/046, retired to a static list by 094: one stop of the merge
+ * replay. The sequence is base → each MATCHING rule (in merge order) →
+ * update-type flattening (whenever blocks existed, merged up or merely
+ * consumed) → the final per-dependency config. Non-matching rules are
+ * deliberately absent — they merge nothing, and the rule list already explains
+ * them clause by clause.
+ *
+ * A stop is prose plus an identity now, not a step: 094 retired the positional
+ * stepper, so nothing walks the sequence one index at a time and no stop
+ * carries the document snapshots a per-stop diff needed.
  */
 export interface MergeStop {
   kind: "base" | "rule" | "flatten" | "final";
@@ -45,34 +44,35 @@ export interface MergeStop {
   ruleIndex?: number;
   /** The keys this stop changed (rule and flatten stops). */
   merged?: MergedKey[];
-  chip: { dot?: SequenceDotLevel; label: ReactNode; count?: string; ariaLabel: string };
-  step: StepThroughStep;
+  /** Stable identity: the list's React key, and the anchor a verdict-card jump
+   *  scrolls to. */
+  id: string;
+  /** Where the stop sits in the sequence. A rule stop matches how `stopLabels`
+   *  words a thread's "step 2 of 2 in the replay →"; the rest are named. */
+  counter: string;
+  /** The head row: what this stop is (name, key chip, provenance chip). */
+  head: ReactNode;
+  explanation: ReactNode;
+  /** More than prose, for the one stop that has more — the final config. */
+  body?: ReactNode;
+  /** Roadmap 047: the delta shorthand the collapsed drawer summary quotes
+   *  (`+1` / `⊘7`). The flatten stop's alone: every other stop's explanation
+   *  names the keys it wrote, which says more than a count. */
+  count?: string;
 }
-
-/** Stable identity so the flatten diff's widget memo never rebuilds. */
-const FLATTEN_BENIGN_REMOVALS = {
-  keys: UPDATE_TYPE_KEYS,
-  note: "consumed by flattening — resolved into this update's config, then dropped; not a rejection",
-};
 
 /**
  * The starting point: the effective config with the simulated dependency's
  * fields layered on, before any rule ran.
  */
-function baseStop(base: Record<string, unknown>): MergeStop {
+function baseStop(): MergeStop {
   return {
     kind: "base",
-    chip: { dot: "skipped", label: "base", ariaLabel: "Base config — before any rule" },
-    step: {
-      id: "base",
-      before: base,
-      after: base,
-      counter: "Start",
-      head: <span className="migration-step-name">Base config</span>,
-      explanation:
-        "The effective config with the simulated dependency's fields layered on — what every rule was tested against.",
-      body: <div className="empty-note">Starting point — select a merge to see its diff.</div>,
-    },
+    id: "base",
+    counter: "Start",
+    head: <span className="migration-step-name">Base config</span>,
+    explanation:
+      "The effective config with the simulated dependency's fields layered on — what every rule was tested against.",
   };
 }
 
@@ -91,165 +91,119 @@ function ruleStop(
   // filtering to rule steps above does not narrow it — even though a rule
   // step always carries one. The hand-written template interpolated it
   // regardless and would have rendered `packageRules[undefined]`; this falls
-  // back to the same "matched rule" wording the step head already uses below
+  // back to the same "matched rule" wording the stop head already uses below
   // when the rule itself cannot be found.
   const ref = ms.ruleIndex === undefined ? "matched rule" : ruleRef(ms.ruleIndex);
-  const changed = ms.merged.length;
   return {
     kind: "rule",
     ruleIndex: ms.ruleIndex,
     merged: ms.merged,
-    chip: {
-      // The 024 dot vocabulary, meanings intact: green circle = ran and
-      // changed nothing, amber diamond = changed things.
-      dot: changed > 0 ? "changed" : "clean",
-      label: <span className="stage-chip-mono">{ref}</span>,
-      count: changed > 0 ? `+${changed}` : "±0",
-      ariaLabel: `Step ${i + 1} of ${nRules}: ${ref} ${
-        changed > 0 ? `changed ${changed} ${pluralWord(changed, "key")}` : "changed nothing"
-      }`,
-    },
-    step: {
-      id: `rule-${ms.ruleIndex}`,
-      before: ms.before,
-      after: ms.after,
-      counter: `Step ${i + 1} of ${nRules}`,
-      head: (
+    id: `rule-${ms.ruleIndex}`,
+    counter: `Step ${i + 1} of ${nRules}`,
+    head: (
+      <>
+        <span className="sim-rule-index">{ref}</span>
+        <span className="migration-step-name">{rule ? ruleLabel(rule) : "matched rule"}</span>
+        {layer ? (
+          <span className="sim-rule-provenance">
+            <ProvenanceChip layer={layer} onSelectPreset={onSelectPreset} />
+          </span>
+        ) : null}
+      </>
+    ),
+    explanation:
+      ms.merged.length > 0 ? (
+        <>This rule set {mergedKeyList(ms.merged)}.</>
+      ) : (
         <>
-          <span className="sim-rule-index">{ref}</span>
-          <span className="migration-step-name">{rule ? ruleLabel(rule) : "matched rule"}</span>
-          {layer ? (
-            <span className="sim-rule-provenance">
-              <ProvenanceChip layer={layer} onSelectPreset={onSelectPreset} />
-            </span>
-          ) : null}
+          This rule matched but sets nothing beyond its <code>match*</code> selectors — the config
+          is unchanged after this step.
         </>
       ),
-      explanation:
-        changed > 0 ? (
-          <>This rule set {mergedKeyList(ms.merged)}.</>
-        ) : (
-          <>
-            This rule matched but sets nothing beyond its <code>match*</code> selectors — the config
-            is unchanged after this step.
-          </>
-        ),
-    },
   };
 }
 
 /**
  * Update-type flattening, which renders whenever blocks existed — merged up or
- * merely consumed. The consumed-only diff is derived here (the engine only
- * records a step when something merged up): the blocks are deleted from the
- * config exactly as upstream `flattenUpdates` does.
+ * merely consumed.
  */
 function flattenStop(
   sim: SimulationResult,
   flattenStep: MergeStep | undefined,
   blockKeys: string[],
 ): MergeStop {
-  const before = flattenStep?.before ?? sim.rawFinalConfig;
-  let after = flattenStep?.after;
-  if (after === undefined) {
-    const cleaned = { ...before };
-    for (const key of UPDATE_TYPE_KEYS) {
-      delete cleaned[key];
-    }
-    after = cleaned;
-  }
   const mergedUp = flattenStep?.merged ?? [];
   return {
     kind: "flatten",
     merged: mergedUp,
-    chip: {
-      dot: "changed",
-      label: "flatten",
-      count: mergedUp.length > 0 ? `+${mergedUp.length}` : `⊘${blockKeys.length}`,
-      ariaLabel:
-        mergedUp.length > 0
-          ? `Update-type flattening: merged the ${flattenStep?.updateType} block up, ${mergedUp.length} ${pluralWord(mergedUp.length, "key")}`
-          : `Update-type flattening: consumed ${blockKeys.length} ${pluralWord(blockKeys.length, "block")}`,
-    },
-    step: {
-      id: "flatten",
-      before,
-      after,
-      counter: "After the rules",
-      head: (
+    id: "flatten",
+    count: mergedUp.length > 0 ? `+${mergedUp.length}` : `⊘${blockKeys.length}`,
+    counter: "After the rules",
+    head: (
+      <>
+        <span className="migration-step-name">Update-type flattening</span>
+        {flattenStep?.updateType ? (
+          <code className="migration-step-key">{flattenStep.updateType}</code>
+        ) : null}
+      </>
+    ),
+    explanation:
+      mergedUp.length > 0 ? (
         <>
-          <span className="migration-step-name">Update-type flattening</span>
-          {flattenStep?.updateType ? (
-            <code className="migration-step-key">{flattenStep.updateType}</code>
-          ) : null}
+          After the rules, Renovate merges the <code>{flattenStep?.updateType}</code> block up into
+          the config and then drops every update-type block. Merged: {mergedKeyList(mergedUp)}.
+        </>
+      ) : (
+        <>
+          Renovate resolves the update-type blocks into the config for this update, then drops them
+          all —{" "}
+          {sim.flattened.updateType === undefined ? (
+            <>
+              <Term id="updateType">updateType</Term> is unset, so none of them applied
+            </>
+          ) : (
+            <>
+              none of them changed anything for this <code>{sim.flattened.updateType}</code> update
+            </>
+          )}
+          ; the {blockKeys.length} block{blockKeys.length === 1 ? " was" : "s were"} consumed
+          without merging anything up.
         </>
       ),
-      explanation:
-        mergedUp.length > 0 ? (
-          <>
-            After the rules, Renovate merges the <code>{flattenStep?.updateType}</code> block up
-            into the config and then drops every update-type block. Merged:{" "}
-            {mergedKeyList(mergedUp)}.
-          </>
-        ) : (
-          <>
-            Renovate resolves the update-type blocks into the config for this update, then drops
-            them all —{" "}
-            {sim.flattened.updateType === undefined ? (
-              <>
-                <Term id="updateType">updateType</Term> is unset, so none of them applied
-              </>
-            ) : (
-              <>
-                none of them changed anything for this <code>{sim.flattened.updateType}</code>{" "}
-                update
-              </>
-            )}
-            ; the {blockKeys.length} block{blockKeys.length === 1 ? " was" : "s were"} consumed
-            without merging anything up.
-          </>
-        ),
-      benignRemovals: FLATTEN_BENIGN_REMOVALS,
-    },
   };
 }
 
-/** What Renovate would actually use for this update. */
+/** What Renovate would actually use for this update — the README's promise,
+ *  with its own Copy control. */
 function finalStop(sim: SimulationResult): MergeStop {
   return {
     kind: "final",
-    chip: { label: "final config", ariaLabel: "Final per-dependency config" },
-    step: {
-      id: "final",
-      before: sim.finalDependencyConfig,
-      after: sim.finalDependencyConfig,
-      counter: "Result",
-      head: <span className="migration-step-name">Final per-dependency config</span>,
-      explanation:
-        "What Renovate would use for this update — the base config plus everything the stops before this one applied.",
-      body: (
-        <div>
-          <div className="sim-final-config-actions">
-            <CopyButton
-              getText={() => `${JSON.stringify(sim.finalDependencyConfig, null, 2)}\n`}
-              label="Copy config"
-              title="Copy the final per-dependency config as JSON"
-            />
-          </div>
-          <pre className="config-view">
-            <ConfigJson value={sim.finalDependencyConfig} />
-          </pre>
+    id: "final",
+    counter: "Result",
+    head: <span className="migration-step-name">Final per-dependency config</span>,
+    explanation:
+      "What Renovate would use for this update — the base config plus everything the stops before this one applied.",
+    body: (
+      <div>
+        <div className="sim-final-config-actions">
+          <CopyButton
+            getText={() => `${JSON.stringify(sim.finalDependencyConfig, null, 2)}\n`}
+            label="Copy config"
+            title="Copy the final per-dependency config as JSON"
+          />
         </div>
-      ),
-    },
+        <pre className="config-view">
+          <ConfigJson value={sim.finalDependencyConfig} />
+        </pre>
+      </div>
+    ),
   };
 }
 
 /**
- * The merge timeline, as four kinds of stop. Each kind is its own builder —
- * the sequence is base -> every matching rule -> flattening -> final, and this
- * function is now that sentence rather than ~175 lines in which the four are
- * only distinguishable by reading their object literals.
+ * The merge replay, as four kinds of stop. Each kind is its own builder — the
+ * sequence is base -> every matching rule -> flattening -> final, and this
+ * function is that sentence rather than the object literals it used to be.
  */
 export function buildMergeStops(
   sim: SimulationResult,
@@ -260,9 +214,8 @@ export function buildMergeStops(
   const nRules = ruleSteps.length;
   const flattenStep = sim.mergeSteps.find((s) => s.kind === "flatten");
   const blockKeys = Object.keys(sim.flattened.blocks);
-  const base = sim.mergeSteps[0]?.before ?? sim.rawFinalConfig;
 
-  const stops: MergeStop[] = [baseStop(base)];
+  const stops: MergeStop[] = [baseStop()];
   for (const [i, ms] of ruleSteps.entries()) {
     stops.push(ruleStop(ms, i, nRules, sim, layerByIndex, onSelectPreset));
   }

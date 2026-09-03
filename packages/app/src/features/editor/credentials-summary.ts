@@ -11,6 +11,7 @@
  */
 import { PLATFORM_ENDPOINTS } from "@/data/platform-endpoints";
 import type { HostTokenId } from "@/data/host-tokens";
+import { isValidToken } from "@/lib/input-schemas";
 
 export interface CredentialsInput {
   /** The per-host tokens, exactly as `useHostTokens` reports them — `host` is
@@ -54,15 +55,22 @@ function primaryHost(input: CredentialsInput, canonical: string | undefined): st
 
 export function credentialsLine(input: CredentialsInput): string {
   const primary = input.tokens.find((token) => token.id === input.platform);
+  // "Carries a credential" is HostRows' rule: set AND valid — the app refuses to
+  // save an invalid token, so the line must not claim one authenticates.
+  const primaryValue = primary?.value ?? "";
   const primaryAuthed =
-    (input.platform === "github" && input.signedIn) || (primary?.value ?? "") !== "";
+    (input.platform === "github" && input.signedIn) ||
+    (primaryValue !== "" && isValidToken(primaryValue));
   let extras = input.customHostCount;
   for (const token of input.tokens) {
     if (token.id === input.platform) {
       continue;
     }
     // A sign-in and a PAT are one credential for github.com, not two.
-    if (token.value !== "" || (token.id === "github" && input.signedIn)) {
+    if (
+      (token.value !== "" && isValidToken(token.value)) ||
+      (token.id === "github" && input.signedIn)
+    ) {
       extras += 1;
     }
   }

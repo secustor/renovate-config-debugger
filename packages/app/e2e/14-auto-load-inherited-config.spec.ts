@@ -1,5 +1,5 @@
 import { expect, type Page, test } from "@playwright/test";
-import { expectRunIdle, openLayerStage, resultsPanel } from "./helpers";
+import { expectRunIdle, gotoAppAtDefaultConfig, openLayerStage, resultsPanel } from "./helpers";
 
 /**
  * Roadmap 045 — the repo-load form's inherited-config probe, end to end against
@@ -62,8 +62,7 @@ async function openRepoForm(page: Page): Promise<void> {
 
 /** A fresh visit with the load form open — how every test here starts. */
 async function startAtRepoForm(page: Page): Promise<void> {
-  await page.goto("/");
-  await expect(page.locator(".cm-content")).toContainText("config:recommended");
+  await gotoAppAtDefaultConfig(page);
   await openRepoForm(page);
 }
 
