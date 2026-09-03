@@ -116,7 +116,8 @@ it("renders a suggested edit as a unified diff behind one primary Apply button",
 });
 
 /** The library is `null` until the engine chunk has loaded. The card must still
- *  render the message — degrading to "no explanation yet", never to nothing. */
+ *  render the raw message alone — no explanation, no fix and no claim that there
+ *  is none — degrading exactly as `ErrorTranslationView` does. */
 it("renders the raw message before the translation library has loaded", async () => {
   const result = await panelFor(JSON.stringify({ automerge: "yes" }));
   const view = render(
@@ -127,4 +128,6 @@ it("renders the raw message before the translation library has loaded", async ()
   expect(card?.textContent).toContain("should be boolean");
   expect(card?.querySelector(".problem-key")).toBeNull();
   expect(card?.querySelector(".problem-docs")).toBeNull();
+  expect(card?.querySelector(".problem-nofix")).toBeNull();
+  expect(card?.querySelector(".problem-body")).toBeNull();
 });

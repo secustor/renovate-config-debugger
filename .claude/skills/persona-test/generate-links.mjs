@@ -2,7 +2,7 @@
 /**
  * Roadmap 019 — share-link generator for persona-test scenarios.
  *
- * Produces a URL in the exact wire format `packages/app/src/share.ts` reads:
+ * Produces a URL in the exact wire format `packages/app/src/lib/share.ts` reads:
  *   payload {v:2, renovate, config, fileName, c} → JSON → UTF-8 →
  *   deflate-raw (CompressionStream) → base64url (no padding), placed after
  *   `#config=`. `c` is the 027 integrity tag (config checksum).
@@ -219,7 +219,7 @@ function bytesToBase64url(bytes) {
 }
 
 /** Roadmap 027 integrity tag — must stay byte-for-byte identical to
- *  `configChecksum` in packages/app/src/share.ts (32-bit FNV-1a, base36). */
+ *  `configChecksum` in packages/app/src/lib/share.ts (32-bit FNV-1a, base36). */
 function configChecksum(config) {
   let h = 0x811c9dc5;
   for (let i = 0; i < config.length; i++) {

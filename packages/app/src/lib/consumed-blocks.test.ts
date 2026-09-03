@@ -1,6 +1,6 @@
-import type { SimulationResult } from "@renovate-config-debugger/engine";
+import type { RuleAttribution, SimulationResult } from "@renovate-config-debugger/engine";
 import { describe, expect, test } from "vitest";
-import { simResult } from "@tools/test/simulation";
+import { ruleEval, simResult } from "@tools/test/simulation";
 import { appliedUpdateTypeBlock, consumedAuthoredBlocks } from "./consumed-blocks";
 
 /**
@@ -12,6 +12,18 @@ import { appliedUpdateTypeBlock, consumedAuthoredBlocks } from "./consumed-block
  */
 function simFixture(flattened: Partial<SimulationResult["flattened"]> = {}): SimulationResult {
   return simResult({ flattened: { merged: [], blocks: {}, authoredBlocks: [], ...flattened } });
+}
+
+/** One matched rule set the `major` block, so the attribution chip is unambiguous. */
+function simWithMajorSetter(): SimulationResult {
+  return simResult({
+    rules: [{ ...ruleEval(0, "matched"), merged: [{ key: "major", after: { automerge: false } }] }],
+    flattened: {
+      merged: [],
+      blocks: { major: { automerge: false } },
+      authoredBlocks: ["major"],
+    },
+  });
 }
 
 describe("appliedUpdateTypeBlock", () => {
@@ -66,5 +78,32 @@ describe("consumedAuthoredBlocks", () => {
     expect(consumedAuthoredBlocks(sim, null)).toEqual([
       { key: "major", keys: ["automerge"], layer: undefined },
     ]);
+  });
+});
+
+describe("the attribution chip's layer", () => {
+  const directExtend = { kind: "preset", nodeId: "n1", name: "config:best-practices" } as const;
+
+  test("credits the ORIGINATING preset body, not the direct extend it arrived through", () => {
+    const attribution: RuleAttribution[] = [
+      {
+        index: 0,
+        layer: directExtend,
+        sourceIndex: 0,
+        writtenBy: { nodeId: "n2", name: "security:minimumReleaseAgeNpm", sourceIndex: 0 },
+      },
+    ];
+    expect(consumedAuthoredBlocks(simWithMajorSetter(), attribution)[0]?.layer).toEqual({
+      kind: "preset",
+      nodeId: "n2",
+      name: "security:minimumReleaseAgeNpm",
+    });
+  });
+
+  test("falls back to the direct extend when the engine verified no writer", () => {
+    const attribution: RuleAttribution[] = [{ index: 0, layer: directExtend, sourceIndex: 0 }];
+    expect(consumedAuthoredBlocks(simWithMajorSetter(), attribution)[0]?.layer).toEqual(
+      directExtend,
+    );
   });
 });

@@ -133,6 +133,20 @@ describe("extractDeps (golden)", () => {
     expect(outcome.message).toContain("not supported in the browser engine");
   });
 
+  it("reports not-supported for a prototype-named manager", async () => {
+    const outcome = await extractDeps({
+      fileName: "package.json",
+      content: "{}",
+      manager: "constructor",
+    });
+    expect(outcome.ok).toBe(false);
+    if (outcome.ok) {
+      return;
+    }
+    expect(outcome.reason).toBe("unsupported-manager");
+    expect(outcome.message).toContain("not supported in the browser engine");
+  });
+
   it("reports no-manager for a file nothing claims", async () => {
     const outcome = await extractDeps({ fileName: "notes.md", content: "# notes\n" });
     expect(outcome.ok).toBe(false);

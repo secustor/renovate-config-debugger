@@ -1,4 +1,6 @@
+import { isValidConfigObject } from "@renovate-config-debugger/app/headless";
 import type { PipelineInput, PresetAuth } from "@renovate-config-debugger/engine";
+import { CliError } from "../io";
 
 /**
  * `src/questions/` — the transport-neutral layer between the engine and the
@@ -34,6 +36,21 @@ export interface PipelineInputSpec {
   platformOverride?: boolean | undefined;
 }
 
+/** The layer guard both transports share. It runs AFTER a schema, not instead
+ *  of one: zod's record parse already drops a top-level `__proto__` (see
+ *  `findPollutedPath`), so what this catches is nested `packageRules[n]`
+ *  pollution — which the CLI's `parseLayerJson` rejects and MCP's
+ *  `z.record(z.string(), z.unknown())` lets through. */
+function checkedLayer(
+  layer: Record<string, unknown> | undefined,
+  which: string,
+): Record<string, unknown> | undefined {
+  if (layer !== undefined && !isValidConfigObject(layer)) {
+    throw new CliError(`${which} must be a JSON object`);
+  }
+  return layer;
+}
+
 /**
  * The optional halves of a `PipelineInput` are OMITTED rather than set to
  * `undefined`: the engine distinguishes "no global config layer" from "a
@@ -41,12 +58,14 @@ export interface PipelineInputSpec {
  * of `{ platform: undefined }` is not the same input as one without the key.
  */
 export function buildPipelineInput(spec: PipelineInputSpec): PipelineInput {
+  const globalConfig = checkedLayer(spec.globalConfig, "globalConfig");
+  const inheritedConfig = checkedLayer(spec.inheritedConfig, "inheritedConfig");
   return {
     fileName: spec.fileName,
     content: spec.content,
     presetAuth: spec.presetAuth,
-    ...(spec.globalConfig ? { globalConfig: spec.globalConfig } : {}),
-    ...(spec.inheritedConfig ? { inheritedConfig: spec.inheritedConfig } : {}),
+    ...(globalConfig ? { globalConfig } : {}),
+    ...(inheritedConfig ? { inheritedConfig } : {}),
     ...(spec.platform ? { platform: spec.platform } : {}),
     ...(spec.endpoint ? { endpoint: spec.endpoint } : {}),
     ...(spec.platformOverride ? { platformOverride: true } : {}),

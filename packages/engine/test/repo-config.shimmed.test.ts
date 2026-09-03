@@ -381,6 +381,15 @@ describe("extractPackageJsonConfig", () => {
     );
   });
 
+  // The array branch is deliberate (see repo-config.ts): an array `renovate`
+  // key is invalid config, but re-serializing it is how the caller's validator
+  // gets to say so — and how the repo-picker badge still reads "has a config".
+  it("re-serializes an array value instead of dropping it", () => {
+    expect(extractPackageJsonConfig('{"renovate":["config:recommended"]}')).toBe(
+      JSON.stringify(["config:recommended"], null, 2),
+    );
+  });
+
   it("returns null for a missing key, a scalar value, or unparseable JSON", () => {
     expect(extractPackageJsonConfig('{"name":"x"}')).toBeNull();
     expect(extractPackageJsonConfig('{"renovate":5}')).toBeNull();

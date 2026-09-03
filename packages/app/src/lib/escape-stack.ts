@@ -171,8 +171,9 @@ function topLayer(): EscapeLayer | undefined {
  * than the confusion it prevents.
  *
  * Modal surfaces are NOT counted here: they are `modalKeyboardOwned()`, and the
- * bare keys are already switched off while the `?` sheet is up (App's
- * `keysLive`, which is what the sheet's own `enabled` flags read).
+ * bare keys are already switched off while the `?` sheet is up (`keysLive` in
+ * `app/use-keyboard-landings.ts`, which is what the sheet's own `enabled` flags
+ * read).
  *
  * What a layer of these two ranks owes in return, since this is the only thing
  * that reads the rank and it has no way to check: it must not outlive the

@@ -9,8 +9,8 @@
  * holds it to that. It is reachable from the app through the `./is` subpath
  * and therefore from the entry chunk, which must never pull the Renovate graph
  * onto a static import path (see `contracts.ts`, `.oxlintrc.json`'s
- * engine-root ban). Predicates only, so the subpath's whole runtime cost is
- * this file.
+ * engine-root ban). Predicates plus the one own-key read that follows from
+ * them (`ownValue`), so the subpath's whole runtime cost is this file.
  *
  * Not a separate workspace package, deliberately — the same reasoning
  * `contracts.ts` states: the app already depends on the engine and the CLI
@@ -78,4 +78,14 @@ type Falsy = false | 0 | 0n | "" | null | undefined;
  *  narrow — `Boolean` leaves the result `(T | undefined)[]`. */
 export function isTruthy<T>(value: T | Falsy): value is T {
   return Boolean(value);
+}
+
+/** One value out of a lookup table BY OWN KEY — `Object.hasOwn` first, so a
+ *  key the user supplied (`constructor`, `toString`, `__proto__`) answers
+ *  `undefined` instead of an `Object.prototype` member. The predicates' own
+ *  corollary: they narrow a value, this narrows a KEY. Three packages had
+ *  this ternary hand-spelled five times; `rcd/use-lookup-accessors` keeps
+ *  them here. */
+export function ownValue<T>(table: Readonly<Record<string, T>>, key: string): T | undefined {
+  return Object.hasOwn(table, key) ? table[key] : undefined;
 }

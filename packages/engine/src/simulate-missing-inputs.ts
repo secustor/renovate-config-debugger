@@ -31,8 +31,9 @@ import { countNoun } from "./text";
  * That property is why it also has its own `exports` subpath. The app's
  * `lib/rule-verdict.ts` re-exports the predicates below, and reaching them
  * through the root barrel put the entire Renovate graph on the static path of
- * the app's results chunk. Keep the import list above as it is — a value import
- * of anything Renovate-touching here would silently re-weld it.
+ * the app's results chunk. `test/import-free-subpaths.node.test.ts` walks this
+ * module's value-import closure and fails on the first non-relative specifier,
+ * so the invariant is enforced rather than asked for.
  *
  * The app has a narrower cousin, `buildNoInputCaveat`
  * (`lib/verdict-sentence.ts`), which counts only REPO-config rules via

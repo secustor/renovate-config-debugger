@@ -8,12 +8,31 @@ ruleTester.run("use-lookup-accessors", rule, {
     'const endpoint = defaultEndpointFor(platform) ?? "";',
     "const known = parsed.host ? platformForHost(parsed.host) : undefined;",
 
+    // ---- the shared home the five hand-spelled guards became ----------------
+    // `ownValue(table, key)` passes the table as an ARGUMENT, so no computed
+    // member expression is left for the visitor to see
+    `import { ownValue } from "@renovate-config-debugger/engine/is";`,
+    "const resolver = ownValue(resolvers, platform);",
+    "const loadExtractor = ownValue(managerExtractors, manager);",
+    "export function defaultEndpointFor(platform: string) { return ownValue(PLATFORM_ENDPOINTS, platform); }",
+    "export function platformForHost(host: string) { return ownValue(HOST_PLATFORM, host); }",
+    // `is.ts`'s own body needs no exemption: the parameter is not a table name
+    "export function ownValue<T>(table: Readonly<Record<string, T>>, key: string) { return Object.hasOwn(table, key) ? table[key] : undefined; }",
+
+    // ---- the `in` operator is deliberately NOT matched ----------------------
+    // `extract.ts:194`/`:334` test keys the engine produced itself, so an `in`
+    // arm would be two false positives for no gain
+    "if (!(manager in managerExtractors)) { return unsupported(manager); }",
+    "const manager = matched().find((m) => m in managerExtractors);",
+
     // ---- a string-literal key is provably an own key ------------------------
     // the table is written in the same file, so `"gitea"` cannot reach a
     // prototype member — no guard buys anything here
     `const gitea = PLATFORM_ENDPOINTS["gitea"];`,
     `const github = PLATFORM_ENDPOINTS["github"] || "";`,
     `const platform = HOST_PLATFORM["github.com"];`,
+    `const resolver = resolvers["github"];`,
+    `const load = managerExtractors["npm"];`,
 
     // ---- a dotted access is not computed and never reaches the visitor ------
     "export const Endpoint = PLATFORM_ENDPOINTS.github;",
@@ -27,6 +46,9 @@ ruleTester.run("use-lookup-accessors", rule, {
     "const entries = Object.entries(HOST_PLATFORM);",
     "const present = Object.hasOwn(PLATFORM_ENDPOINTS, platform);",
     "const table = PLATFORM_ENDPOINTS;",
+    // `extract.ts:72` — the key list, not a read
+    "export const EXTRACTABLE_MANAGERS = Object.keys(managerExtractors);",
+    "const platforms = Object.keys(resolvers);",
 
     // ---- a table this rule does not own ------------------------------------
     "const endpoint = ENDPOINTS[platform];",
@@ -49,6 +71,73 @@ ruleTester.run("use-lookup-accessors", rule, {
   PLATFORM_ENDPOINTS[platform] ??
   "";`,
       errors: [{ messageId: "useLookupAccessor" }],
+    },
+
+    // ---- THE TWO DEFECTS THIS WIDENING IS FOR ------------------------------
+    // `shims/presets/local.ts:41` before 40d7e954: `platform` comes out of
+    // `GlobalConfig`, and `Object.prototype.constructor` is TRUTHY, so the
+    // truthy branch called `.getPresetFromEndpoint` on a FUNCTION
+    {
+      code: "const resolver = resolvers[platform];",
+      errors: [
+        {
+          messageId: "useLookupAccessor",
+          data: {
+            table: "resolvers",
+            accessor: "ownValue(table, key)",
+            from: "@renovate-config-debugger/engine/is",
+          },
+        },
+      ],
+    },
+    // `extract.ts:352` before the same commit: `manager` arrives from
+    // `rcd extract --manager` and MCP `extract_deps.manager`, so the
+    // `loadExtractor === undefined` fall-through could never fire for a
+    // prototype key
+    {
+      code: "const loadExtractor = managerExtractors[manager];",
+      errors: [
+        {
+          messageId: "useLookupAccessor",
+          data: {
+            table: "managerExtractors",
+            accessor: "ownValue(table, key)",
+            from: "@renovate-config-debugger/engine/is",
+          },
+        },
+      ],
+    },
+    // the endpoint table names the SHARED helper: the name is declared in both
+    // packages, so `defaultEndpointFor` would be wrong advice inside the engine
+    {
+      code: "const endpoint = PLATFORM_ENDPOINTS[platform];",
+      errors: [
+        {
+          messageId: "useLookupAccessor",
+          data: {
+            table: "PLATFORM_ENDPOINTS",
+            accessor: "ownValue(table, key)",
+            from: "@renovate-config-debugger/engine/is",
+          },
+        },
+      ],
+    },
+    // …and the app-only table keeps its narrower domain name — and its own
+    // ARITY: the message carries each accessor's call shape, so a reader does
+    // not have to open `is.ts` to find out that one takes the table and the
+    // other does not.
+    {
+      code: "const platform = HOST_PLATFORM[parsed.host];",
+      errors: [
+        {
+          messageId: "useLookupAccessor",
+          data: {
+            table: "HOST_PLATFORM",
+            accessor: "platformForHost(key)",
+            from: "@/data/host-tokens",
+          },
+        },
+      ],
     },
 
     // ---- the nine siblings converted by the same commit ---------------------
@@ -119,15 +208,45 @@ const endpoint = PLATFORM_ENDPOINTS[platform];`,
       errors: [{ messageId: "useLookupAccessor" }, { messageId: "useLookupAccessor" }],
     },
 
-    // ---- the accessor bodies themselves ------------------------------------
-    // reported on shape, exempted BY PATH in `.oxlintrc.json`: the guard and the
-    // read need not be adjacent, so an AST rule must not try to recognise one
+    // ---- the hand-spelled guard is still reported, which is now the point ---
+    // all five of these were live; each is one `ownValue` call after this
+    // landing. The rule does NOT try to recognise the guarded shape — the guard
+    // and the read need not be adjacent — so a site that must keep it is
+    // exempted by PATH, and exactly one does.
     {
       code: "function defaultEndpointFor(platform: string) { return Object.hasOwn(PLATFORM_ENDPOINTS, platform) ? PLATFORM_ENDPOINTS[platform] : undefined; }",
       errors: [{ messageId: "useLookupAccessor" }],
     },
     {
       code: "function platformForHost(host: string) { return Object.hasOwn(HOST_PLATFORM, host) ? HOST_PLATFORM[host] : undefined; }",
+      errors: [{ messageId: "useLookupAccessor" }],
+    },
+    {
+      code: "const resolver = Object.hasOwn(resolvers, platform) ? resolvers[platform] : undefined;",
+      errors: [{ messageId: "useLookupAccessor" }],
+    },
+    {
+      code: `const loadExtractor = Object.hasOwn(managerExtractors, manager)
+  ? managerExtractors[manager]
+  : undefined;`,
+      errors: [{ messageId: "useLookupAccessor" }],
+    },
+    // the engine's twin carried a cast the shared helper makes unnecessary
+    {
+      code: `function defaultEndpointFor(platform: string): string | undefined {
+  return Object.hasOwn(PLATFORM_ENDPOINTS, platform)
+    ? PLATFORM_ENDPOINTS[platform as HostPlatform]
+    : undefined;
+}`,
+      errors: [{ messageId: "useLookupAccessor" }],
+    },
+
+    // ---- the one path exemption, reported here on shape ---------------------
+    // `shims/repo-config.ts:207`/`:245`: a `RepoPlatform` union key on a
+    // `Record<HostPlatform, string>` is total by construction, and the `||` arm
+    // would not typecheck against a `string | undefined`
+    {
+      code: "const endpoint = withTrailingSlash(req.endpoint || PLATFORM_ENDPOINTS[platform]);",
       errors: [{ messageId: "useLookupAccessor" }],
     },
   ],

@@ -229,8 +229,9 @@ describe("overlay keyboard ownership", () => {
 
   it("is not the modal question", () => {
     // A modal takes the keyboard through `claimModalKeyboard`, and the bare
-    // keys are switched off by App's `keysLive` while the sheet is up. Nothing
-    // is layered over the page here, and this query must not pretend otherwise.
+    // keys are switched off by `keysLive` (`app/use-keyboard-landings.ts`)
+    // while the sheet is up. Nothing is layered over the page here, and this
+    // query must not pretend otherwise.
     const release = modal();
     expect(overlayKeyboardOwned()).toBe(false);
     release();

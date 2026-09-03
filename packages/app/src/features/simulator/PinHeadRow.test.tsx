@@ -37,4 +37,34 @@ describe("PinHeadRow", () => {
     expect(view.container.querySelector(".pin-starter")).toBeNull();
     expect(view.container.querySelector(".pin-name")?.textContent).toBe("lodash");
   });
+
+  // A pin whose simulation threw used to read "not checked" — the one wording
+  // indistinguishable from a pin that never ran.
+  it("says a failed check could not be checked, and carries the message", () => {
+    const view = render(
+      <PinHeadRow
+        check={{ status: "failed", error: "boom" }}
+        name="lodash"
+        context="4.17.20 → 4.18.0 · minor"
+        summary={null}
+      />,
+    );
+    const pending = view.container.querySelector(".pin-pending");
+    expect(pending?.textContent).toBe("could not be checked");
+    expect(pending?.getAttribute("title")).toBe("boom");
+  });
+
+  it("says a pin that has not run yet is still checking", () => {
+    const view = render(
+      <PinHeadRow
+        check={{ status: "pending" }}
+        name="lodash"
+        context="4.17.20 → 4.18.0 · minor"
+        summary={null}
+      />,
+    );
+    const pending = view.container.querySelector(".pin-pending");
+    expect(pending?.textContent).toBe("checking…");
+    expect(pending?.getAttribute("title")).toBeNull();
+  });
 });

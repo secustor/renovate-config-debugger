@@ -2,7 +2,7 @@
    ORDER IS LOAD-BEARING: main.tsx imports these numbered files in sequence,
    preserving the original file's cascade byte-for-byte; the couplings that
    depend on that order are listed there.
-   This file: the effective config's blame ledger and point-of-contact attribution (069). */
+   This file: the effective config's blame ledger and point-of-contact attribution (069), and the headless note at the foot of the page (060, `components/HeadlessNote.tsx`). */
 
 /* ---------- 069 PR 3: the description row's blame ledger ----------
 

@@ -29,6 +29,14 @@ type PackageName = (typeof PACKAGES)[number];
 const GROUPS = [...PACKAGES, "tools"] as const;
 type CheckGroup = (typeof GROUPS)[number];
 
+/** The files `tools/docs/privacy-claims.spec.ts` reads — keep in sync with it. */
+const DOC_CLAIM_INPUTS = new Set([
+  "README.md",
+  "SECURITY.md",
+  "docs/GitHub-App-Access.md",
+  "packages/oauth-worker/wrangler.jsonc",
+]);
+
 function filter(pkg: PackageName, script: string): string[] {
   return ["--filter", `@renovate-config-debugger/${pkg}`, script];
 }
@@ -54,8 +62,12 @@ const TESTS: Record<CheckGroup, Check[]> = {
   tools: [{ id: "tools specs", args: ["test:tools"] }],
 };
 
-/** Files no check here reads — prose only, so a docs edit shouldn't cost 30s. */
+/** Prose no check here reads, so a docs edit shouldn't cost 30s — except the
+ *  docs `tools/docs/privacy-claims.spec.ts` pins to the worker config. */
 function isCovered(file: string): boolean {
+  if (DOC_CLAIM_INPUTS.has(file)) {
+    return true;
+  }
   return !(file.endsWith(".md") || file.startsWith("docs/") || file.startsWith("roadmap/"));
 }
 
@@ -65,7 +77,14 @@ function isCovered(file: string): boolean {
 function affectedGroups(files: string[]): Set<CheckGroup> {
   const affected = new Set<CheckGroup>();
   for (const file of files) {
-    if (file.startsWith("packages/engine/")) {
+    if (DOC_CLAIM_INPUTS.has(file)) {
+      // Ahead of the root-level catch-all: a README edit runs the guard that
+      // reads it, not the whole matrix.
+      affected.add("tools");
+      if (file.startsWith("packages/oauth-worker/")) {
+        affected.add("oauth-worker");
+      }
+    } else if (file.startsWith("packages/engine/")) {
       affected.add("engine").add("app").add("cli");
     } else if (file.startsWith("packages/app/")) {
       affected.add("app").add("cli");

@@ -1,5 +1,6 @@
 import { definePlugin } from "@oxlint/plugins";
 import commentCitesWhatExists from "./rules/comment-cites-what-exists.ts";
+import completeEnumerationRestatement from "./rules/complete-enumeration-restatement.ts";
 import noUncaughtVoidChain from "./rules/no-uncaught-void-chain.ts";
 import noUnsynchronisedReassert from "./rules/no-unsynchronised-reassert.ts";
 import preferIsHelpers from "./rules/prefer-is-helpers.ts";
@@ -29,7 +30,7 @@ import useTruncate from "./rules/use-truncate.ts";
  *       fix is not an import: the construct itself is defective wherever it
  *       appears, it shipped that way, and the diagnostic names the correction.
  *
- * Eleven of the fourteen clear (a). Three clear (b): `no-uncaught-void-chain`,
+ * Twelve of the fifteen clear (a). Three clear (b): `no-uncaught-void-chain`,
  * which bans a construct and names no import, and the two the third sweep
  * added, which name a correction instead of a ban. Say which arm a new rule is
  * on when you add one.
@@ -108,8 +109,11 @@ import useTruncate from "./rules/use-truncate.ts";
  * citation against the real tree and its message says which file DOES define
  * the symbol. Two message ids in one file on purpose — the arms share one repo
  * file index, one `getAllComments()` pass and one comment normalization, and
- * two files would walk the filesystem twice. It is the only house rule that
- * touches the filesystem; the walk is memoized once per lint process.
+ * two files would walk the filesystem twice. It is one of the two house rules
+ * that touch the filesystem, and the `pnpm-workspace.yaml` root walk both need
+ * is `tools/lint/repo-root.ts` — one shared function, memoized once per lint
+ * process, because a second copy of it would be the arm-(a) class this plugin
+ * exists to report.
  *
  * The 2026-09 structure sweep IV added two rules and widened two, all on arm
  * (a). `use-lookup-accessors` guards the sharpest defect of the set:
@@ -127,9 +131,10 @@ import useTruncate from "./rules/use-truncate.ts";
  * the simulator's `previewValue` was `fixSnippet`'s body with the budget as a
  * parameter, byte-identical and with the same two imports, living in a feature
  * slice while `value-preview.ts` declared itself the home). Two more literal
- * copies were still live and are converted by landing it. Both rules are
- * app-only, which removes their only false positives structurally rather than
- * by heuristic.
+ * copies were still live and are converted by landing it. Both rules LANDED
+ * app-only, which removed their only false positives structurally rather than
+ * by heuristic; `use-json-snippet` still is, and `use-lookup-accessors` stopped
+ * being one sweep later — see below.
  *
  * The two widenings sit on rules already here. `prefer-plural` grew from the
  * `{n} {pluralWord(n, word)}` adjacency arm to the hand-spelled
@@ -148,6 +153,42 @@ import useTruncate from "./rules/use-truncate.ts";
  * hunting this class. The backtick around the symbol is the whole precision
  * device — without it the possessive matches fifteen lines of ordinary prose,
  * with it five.
+ *
+ * The 2026-09 structure sweep V added one rule and widened three, all on arm
+ * (a). `complete-enumeration-restatement` is the only rule here that guards a
+ * COVERAGE LIE rather than a code defect: a test hand-copies part of an
+ * enumeration that has a home, and the copy silently stops covering the members
+ * added after it was written. `cli/src/main.test.ts` already records the class
+ * in its own words — a hand-written list is how `group` and `mcp` shipped
+ * untested — and sweep V's finding 29 is the same defect in the app, where
+ * "accepts every real tab id" looped six of the seven `RESULTS_TAB_IDS`
+ * (2613e96e); finding 50's own fix then made a second copy of the CLI's drifted
+ * six-of-twelve list in the built bin's only gate. Landing it removes both. It
+ * is the second house rule to touch the filesystem, reusing
+ * `comment-cites-what-exists`'s memoized root walk to scrape its two registries
+ * from the tree, and a scrape that matches nothing goes silent — it fails open.
+ *
+ * The three widenings. `use-lookup-accessors` made the arm-(b)-to-(a) move a
+ * second time by MOVING ITS HOME: the own-key read now lives beside the
+ * predicates as `ownValue(table, key)` in `packages/engine/src/is.ts`, so the
+ * import is `./is` from all three packages, five hand-spelled
+ * `Object.hasOwn(T, k) ? T[k] : undefined` copies collapse onto one function,
+ * and the engine's two caller-keyed tables (`resolvers` in
+ * `shims/presets/local.ts`, `managerExtractors` in `extract.ts`) join the
+ * registry — both of them defects fixed by hand in THIS sweep (40d7e954), the
+ * same class that shipped as sweep IV's finding 69. It is no longer app-only,
+ * and the two app path exemptions became call sites, leaving one exemption
+ * (`shims/repo-config.ts`, a total `Record<HostPlatform, …>` read).
+ * `comment-cites-what-exists` grew a third citation spelling, the EXTENSIONLESS
+ * possessive ``App's `keysLive`` `` — the hole that let findings 26 and 27(c)
+ * survive the sweep before it, since the shipped arm needs the extension. The
+ * module half must be CamelCase or kebab-with-a-hyphen and the symbol must stay
+ * backticked (a bare lowercase word takes 39 matches to 226), and it reports
+ * only when it can name a definite destination, which deliberately silences two
+ * real drifts whose symbols are bound by destructuring. `prefer-plural` grew
+ * `preferPluralNoun`, a hard-spelled plural noun immediately after
+ * `nf.format(n)`: three of the four sites were live "1 <plural>" renderings the
+ * sweep's own review walked past.
  *
  * WHAT IS DELIBERATELY NOT HERE. On arm (a), a rule is the right tool only when
  * the duplicate cannot be REMOVED. The review also found a message phrase the
@@ -169,6 +210,7 @@ export default definePlugin({
   },
   rules: {
     "comment-cites-what-exists": commentCitesWhatExists,
+    "complete-enumeration-restatement": completeEnumerationRestatement,
     "no-uncaught-void-chain": noUncaughtVoidChain,
     "no-unsynchronised-reassert": noUnsynchronisedReassert,
     "prefer-is-helpers": preferIsHelpers,

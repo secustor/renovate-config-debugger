@@ -132,6 +132,40 @@ describe("what a matched rule wrote, against the merge steps", () => {
     expect(second?.conflictNote).toBe("Applied later — its groupName wins over packageRules[0].");
   });
 
+  // Three writers of one key: the note must name the LAST earlier stop — the
+  // value rule 2 replaced was rule 1's, never rule 0's.
+  test("a surviving write names the last earlier stop it beat, not the first", () => {
+    const rules = [0, 1, 2].map((i) => rule(i, "matched", [clause("matched")]));
+    const steps: MergeStep[] = [
+      {
+        kind: "rule",
+        ruleIndex: 0,
+        before: {},
+        after: {},
+        merged: [{ key: "groupName", after: "a" }],
+      },
+      {
+        kind: "rule",
+        ruleIndex: 1,
+        before: {},
+        after: {},
+        merged: [{ key: "groupName", before: "a", after: "b" }],
+      },
+      {
+        kind: "rule",
+        ruleIndex: 2,
+        before: {},
+        after: {},
+        merged: [{ key: "groupName", before: "b", after: "c" }],
+      },
+    ];
+    const outcome = buildPinOutcome(simulation(rules, {}, "minor", steps), layers([]), null);
+    expect(outcome.matched[2]?.wroteSummary).toBe("groupName · wins");
+    expect(outcome.matched[2]?.conflictNote).toBe(
+      "Applied later — its groupName wins over packageRules[1].",
+    );
+  });
+
   test("a matched rule that merged nothing says so", () => {
     const outcome = buildPinOutcome(
       simulation([rule(0, "matched", [clause("matched")])]),
@@ -210,6 +244,22 @@ describe("the rules a card names and the ones it buckets", () => {
     expect(bucketed).toBe(RULES.length - outcome.matched.length - outcome.failed.length);
     // The header count is total minus matched — the named failures included.
     expect(outcome.skippedCount).toBe(RULES.length - outcome.matched.length);
+  });
+
+  // `matchBaseBranches` is the registry's one -ches plural; a naive `s$` strip
+  // printed "base branche" straight into the bucket's reason line.
+  test("singularizes a sibilant selector for the axis reason", () => {
+    const outcome = buildPinOutcome(
+      simulation([
+        rule(0, "no-match", [
+          clause("no-match", "matchBaseBranches", ["next"], { baseBranch: "main" }),
+        ]),
+      ]),
+      layers([]),
+      null,
+    );
+    const bucket = outcome.buckets.find((b) => b.id === "other-axis");
+    expect(bucket?.reason).toBe("matcher on a different axis (base branch)");
   });
 
   test("without provenance nothing is anyone's own, and the remainder is one axis bucket", () => {

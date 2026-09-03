@@ -27,6 +27,7 @@
  */
 import { getAuthRefreshHandler, resolveAuthToken } from "../../auth";
 import { AUTH_OR_RATE_LIMIT_HINT, NETWORK_OR_CORS_HINT } from "../../contracts";
+import { ownValue } from "../../is";
 import { ExternalHostError, fetchPreset } from "../renovate-internals";
 import { encodePathSegments } from "../url-path";
 import { getInjectedPreset } from "./injection";
@@ -51,9 +52,7 @@ export const PLATFORM_ENDPOINTS: Record<HostPlatform, string> = {
  *  self-hosted platform Renovate knows and this tool has no fetcher for
  *  simply has none. */
 export function defaultEndpointFor(platform: string): string | undefined {
-  return Object.hasOwn(PLATFORM_ENDPOINTS, platform)
-    ? PLATFORM_ENDPOINTS[platform as HostPlatform]
-    : undefined;
+  return ownValue(PLATFORM_ENDPOINTS, platform);
 }
 
 /**

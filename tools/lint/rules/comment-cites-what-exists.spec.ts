@@ -67,6 +67,43 @@ ruleTester.run("comment-cites-what-exists", rule, {
     "// rule lives in App.tsx's `jumpDisplacedFocus`, which is module-private and has\nexport const t = 20;",
     // a possessive whose file is nowhere is arm A's business or nobody's
     "// no-such-module.ts's `nowhereSymbol`\nexport const u = 21;",
+    // ---- arm B, the extensionless spelling: escapes --------------------
+    // THE MODULE HALF IS NEVER A BARE LOWERCASE WORD. Allowing one takes the
+    // raw match count from 39 to 226 — ordinary prose that resolves by accident
+    // against `types/*.ts`.
+    "// the link's `node` is the row the reader clicked\nexport const v = 22;",
+    "// the engine's `digest` is what the header line prints\nexport const w = 23;",
+    // SAME PRECISION DEVICE AS THE ARM ABOVE: no backtick, no citation.
+    "// every page-level key is gated on App's keysLive while the sheet is up\nexport const x = 24;",
+    // the symbol is where the extensionless possessive says it is — and this is
+    // the trailing-apostrophe spelling, which the sweep's own fixes write
+    "// use-keyboard-landings' `keysLive` is the gate every page key reads\nexport const y = 25;",
+    // …and the same possessive spelled as lowercase-leading camelCase is NOT in
+    // the module half at all — the header says so, so this pins it: only
+    // CamelCase or kebab-with-a-hyphen is read, and a would-be lie in this
+    // spelling is silent rather than reported.
+    "// useKeyboardLandings' `nowhereSymbol` is not a spelling this arm reads\nexport const ae = 31;",
+    // AMBIGUOUS, checked before the symbol ever is: `rule-provenance.ts` is both
+    // the app hook and the CLI projection, so the arm declines.
+    "// rule-provenance's `nowhereSymbol` decides the row\nexport const z = 26;",
+    // a module name that resolves to no file at all
+    "// NoSuchModule's `keysLive` is the gate\nexport const aa = 27;",
+    // THE GATE, both live silences, verbatim. `packageRules` is prose naming a
+    // UI row: 151 files mention it and none is its unique home, so the message
+    // could only say "not here, and I cannot tell you where".
+    "/**\n * the `packageRules` array — EffectiveConfig's `packageRules` row is the\n * same list.\n */\nexport const ab = 28;",
+    // THE SAME PLAIN-TEXT RECALL LOSS AS `activeHide`, and it costs this arm
+    // one of the two findings it was built from: sweep V finding 26
+    // (`app/use-focus-landing.ts:55` verbatim, fixed BY HAND in 2613e96e) cited
+    // `App` for a function roadmap 086 had moved into `use-keyboard-landings`,
+    // but App.tsx destructures the moved binding out of the hook, and a mention
+    // counts as present.
+    "/**\n * Exported since the ninth 068 review for App's `gestureWantsResultsLanding`,\n * which asks the same question of the same DOM.\n */\nexport const ad = 30;",
+    // AND THE RECALL COST OF THE GATE, stated rather than hidden (RepoLoadForm.tsx:22,
+    // verbatim): a REAL drift the gate silences, because `inheritAutoEdit` is
+    // bound only by destructuring in `app/use-inherited-config-layer.ts` and no
+    // declaration site can be named.
+    "/**\n * 2026-07-26 — see App's `inheritAutoEdit`) plus the exact repo and file the\n */\nexport const ac = 29;",
     // ---- structurally out of reach: only comments are read ---------------
     'const p = "packages/app/src/nope.tsx";',
     'const q = ["fixtures/does-not-exist.test.ts"];',
@@ -155,6 +192,46 @@ ruleTester.run("comment-cites-what-exists", rule, {
     // both spellings in one comment, two reports
     {
       code: "// `noSuchExport` in App.tsx, and App.tsx's `alsoNoSuchExport`\nexport const o = 15;",
+      errors: [{ messageId: "symbolNotInFile" }, { messageId: "symbolNotInFile" }],
+    },
+    // ---- arm B extensionless, the shipped defect (2613e96e) -------------
+    // Sweep V finding 27(c), `lib/input-schemas.ts:329` verbatim — the kebab
+    // half of the matcher, and the zero-mention branch of the gate: the real
+    // function is `parseRepoReference` in `lib/repo-reference.ts`, so nothing in
+    // the shipped tree defines what this cites.
+    {
+      code: "// Repo-load input (use-repo-load's `parseRepoRef` result, before request building)\nexport const q = 17;",
+      errors: [{ messageId: "symbolNotInFile" }],
+    },
+    // ---- arm B extensionless, the live defects it was landed with -------
+    // `keysLive` is `use-keyboard-landings.ts`'s, and four comments in three
+    // trees said it was App's (ShortcutSheet.tsx:25 verbatim).
+    {
+      code: "/**\n * read), the same way every other page-level key is gated on App's `keysLive`.\n */\nexport const r = 18;",
+      errors: [{ messageId: "symbolNotInFile" }],
+    },
+    // StageRail.tsx:197 verbatim — and it named the right file in the very next
+    // clause, which is how a possessive drifts without anyone noticing.
+    {
+      code: "/** An uninterrupted walk is 1.28 s at this pace; App's `LANDING_WALK_CAP_MS`\n *  (use-landing-walk.ts) must stay comfortably above it. */\nexport const s = 19;",
+      errors: [{ messageId: "symbolNotInFile" }],
+    },
+    // THE TRAILING-APOSTROPHE POSSESSIVE, the spelling the sweep's own fixes
+    // introduced, resolved through the same index.
+    {
+      code: "// use-keyboard-landings' `LANDING_WALK_CAP_MS` paces the walk\nexport const t = 20;",
+      errors: [{ messageId: "symbolNotInFile" }],
+    },
+    // `.mjs` is in the extension list too — the app's build scripts are cited
+    // the same way the modules are.
+    {
+      code: "// build-manifest's `keysLive` decides what the manifest lists\nexport const u = 21;",
+      errors: [{ messageId: "symbolNotInFile" }],
+    },
+    // the extensionless and the extension-carrying spelling of two different
+    // claims in one comment, two reports from two arms
+    {
+      code: "// App's `keysLive`, and App.tsx's `alsoNoSuchExport`\nexport const v = 22;",
       errors: [{ messageId: "symbolNotInFile" }, { messageId: "symbolNotInFile" }],
     },
   ],

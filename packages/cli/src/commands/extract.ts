@@ -4,7 +4,7 @@ import type { Command } from "../command";
 import { CliError, EXIT_ERROR, EXIT_OK } from "../io";
 import { emitJson, emitLines } from "../output";
 import { anySucceeded, askExtraction, type ExtractReport } from "../questions/extract";
-import { readTextFile } from "../run-input";
+import { readTextFile, rejectExtraPositionals } from "../run-input";
 
 /**
  * Roadmap 078's CLI half: "what would Renovate extract from this file?",
@@ -67,6 +67,7 @@ export const extractCommand: Command = {
   options: ["manager", "format"],
   async run(args, io) {
     const format = outputFormat(args);
+    rejectExtraPositionals(args, "extract", 0);
     const file = args.positionals[0];
     if (!file) {
       throw new CliError("name a file, e.g. `rcd extract package.json`");

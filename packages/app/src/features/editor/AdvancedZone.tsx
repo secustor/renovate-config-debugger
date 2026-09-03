@@ -70,6 +70,9 @@ export interface AdvancedZoneProps {
    *  zone is shell-only (ConfigColumn renders it once a result exists), so the
    *  pipeline it points at is always there. */
   onShowPipelineLayers: () => void;
+  /** While the untrusted-endpoint guard stands every run is executed with
+   *  tokens suppressed, so the collapsed line may not claim one is in force. */
+  suppressTokens: boolean;
 }
 
 /** The panel's opening line (Proposal F verbatim): what the drawer is FOR, and
@@ -122,6 +125,7 @@ export function AdvancedZone({
   hostTokens,
   customHostRules,
   onShowPipelineLayers,
+  suppressTokens,
 }: AdvancedZoneProps) {
   const line = credentialsLine({
     tokens: hostTokens,
@@ -129,6 +133,7 @@ export function AdvancedZone({
     platform: displayPlatform,
     endpoint: displayEndpoint,
     customHostCount: customHostRules.rules.length,
+    suppressTokens,
   });
   return (
     <details

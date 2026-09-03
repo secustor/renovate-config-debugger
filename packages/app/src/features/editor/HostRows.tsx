@@ -38,6 +38,7 @@ function HostTokenInput({ host }: { host: HostTokenField }) {
  *  "a token, or no token" but 009's three-way (signed in / can sign in / PAT
  *  only). Its own component so each branch is a flat list of controls. */
 function GithubRowActions({
+  host,
   oauthConfigured,
   signedIn,
   avatarUrl,
@@ -48,6 +49,7 @@ function GithubRowActions({
   onClearToken,
   onRevealToken,
 }: {
+  host: string;
   oauthConfigured: boolean;
   signedIn: boolean;
   /** See Props.authUser — the signed-in row names who, when it can. */
@@ -84,7 +86,13 @@ function GithubRowActions({
       ) : null}
       {tokenValid ? <span className="host-ok">token ✓</span> : null}
       {tokenSet ? (
-        <button type="button" className="host-remove" title="Remove token" onClick={onClearToken}>
+        <button
+          type="button"
+          className="host-remove"
+          title="Remove token"
+          aria-label={`Remove the token for ${host}`}
+          onClick={onClearToken}
+        >
           ✕
         </button>
       ) : null}
@@ -127,6 +135,7 @@ export function GithubHostRow({
         <code className="host-name">{host.host}</code>
         {isPlatform ? <span className="pill pill-count host-kind">platform</span> : null}
         <GithubRowActions
+          host={host.host}
           oauthConfigured={oauthConfigured}
           signedIn={signedIn}
           avatarUrl={avatarUrl}
@@ -184,7 +193,13 @@ function HostRow({
       <span className="pill pill-count host-kind">{kind}</span>
       <span className="host-row-actions">
         {tokenValid ? <span className="host-ok">token ✓</span> : null}
-        <button type="button" className="host-remove" title="Remove host" onClick={onRemove}>
+        <button
+          type="button"
+          className="host-remove"
+          title="Remove host"
+          aria-label={`Remove ${host}`}
+          onClick={onRemove}
+        >
           ✕
         </button>
       </span>

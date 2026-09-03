@@ -221,7 +221,8 @@ function buildWrites(
       ? `${first.key} · ${first.survived ? "wins" : "overridden below"}`
       : `${writes.length} keys · ${survived.length === writes.length ? "win" : `${survived.length} win`}`;
   // The note states the conflict this rule is part of, if any: who rewrote its
-  // keys, or — when everything survived — whose earlier write it rewrote.
+  // keys, or — when everything survived — whose LAST earlier write it rewrote
+  // (before that one, the value on the table is not the one this rule replaced).
   const lost = writes.find((w) => !w.survived);
   if (lost?.overriddenBy !== undefined) {
     return {
@@ -232,7 +233,7 @@ function buildWrites(
   }
   const beaten = mergeSteps
     .slice(0, stopIndex)
-    .find((earlier) => earlier.merged.some((m) => writes.some((w) => w.key === m.key)));
+    .findLast((earlier) => earlier.merged.some((m) => writes.some((w) => w.key === m.key)));
   if (beaten) {
     const key = writes.find((w) => beaten.merged.some((m) => m.key === w.key));
     return {
@@ -290,8 +291,12 @@ function failingClauseNote(rule: RuleEvaluation): string {
 function clauseAxis(key: string): string {
   const stripped = key.replace(/^match/, "").replace(/^exclude/, "");
   const spaced = stripped.replace(/([a-z])([A-Z])/g, "$1 $2").toLowerCase();
-  // The registry's plural keys name the axis in the singular.
-  return spaced.replace(/ies$/, "y").replace(/s$/, "");
+  // The registry's plural keys name the axis in the singular; the sibilant step
+  // is why `matchBaseBranches` does not come out as "base branche".
+  return spaced
+    .replace(/ies$/, "y")
+    .replace(/(ch|sh|s|x|z)es$/, "$1")
+    .replace(/s$/, "");
 }
 
 function failingAxis(rule: RuleEvaluation): string | undefined {
@@ -515,8 +520,9 @@ export function buildPinOutcome(
   sim: SimulationResult,
   layerByIndex: Map<number, ProvenanceLayer>,
   attribution: RuleAttribution[] | null | undefined,
-  /** What the funnel calls the dependency — for the replacements bucket's
-   *  "{dep} hasn't been renamed" reason. */
+  /** The dependency's RAW name (`pinDepName`, not `pinName`) — for the
+   *  replacements bucket's "{dep} hasn't been renamed" reason; `""` means the
+   *  form names no package, and the bucket drops the name from the sentence. */
   depName = "",
 ): PinOutcome {
   const matched: PinMatchedRule[] = [];

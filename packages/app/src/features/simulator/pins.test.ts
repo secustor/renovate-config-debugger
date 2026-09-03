@@ -7,9 +7,11 @@ import { EMPTY_FORM } from "./form";
 import {
   MAX_PINS,
   pinContext,
+  pinDepName,
   pinFormFromShareFields,
   pinName,
   pinsFromShareFields,
+  pinSubject,
   samePinForm,
 } from "./pins";
 import { pinShareFields } from "./pins";
@@ -70,6 +72,22 @@ describe("how a pin names itself", () => {
     expect(pinName({ ...EMPTY_FORM, packageName: "react", depName: "react-dom" })).toBe("react");
     expect(pinName({ ...EMPTY_FORM, depName: "react-dom" })).toBe("react-dom");
     expect(pinName(EMPTY_FORM)).toBe("(no package name)");
+  });
+
+  // The placeholder is display only: a derivation given it would print
+  // "(no package name) hasn’t been renamed" in the replacements bucket.
+  test("the raw name a derivation takes is empty when the form names neither field", () => {
+    expect(pinDepName({ ...EMPTY_FORM, packageName: "react", depName: "react-dom" })).toBe("react");
+    expect(pinDepName({ ...EMPTY_FORM, depName: "react-dom" })).toBe("react-dom");
+    expect(pinDepName(EMPTY_FORM)).toBe("");
+  });
+
+  test("the probe's subject leads with the name and falls back on a blank run type", () => {
+    const form = { ...EMPTY_FORM, depName: "react", manager: "npm", updateType: "patch" };
+    expect(pinSubject(form, "minor")).toBe("react · npm · minor");
+    // Falsy, not nullish: an empty flattened updateType keeps the stored one,
+    // so the body prose and the card header agree.
+    expect(pinSubject(form, "  ")).toBe("react · npm · patch");
   });
 
   test("the muted line prefers the run's own updateType over the stored one", () => {

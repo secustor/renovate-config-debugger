@@ -1,5 +1,5 @@
 import { SegmentedControl, type SegmentedOption } from "@/components/SegmentedControl";
-import { nf, plural } from "@/lib/format";
+import { plural } from "@/lib/format";
 import {
   PHASE_UNAVAILABLE_NOTE,
   PIPELINE_PHASES,
@@ -39,7 +39,7 @@ function phaseNote(
   }
   if (phase === "extract") {
     if (extract.status === "ready") {
-      return { text: `+${nf.format(extract.deps.length)} deps`, tone: "ok" };
+      return { text: `+${plural(extract.deps.length, "dep")}`, tone: "ok" };
     }
     return extract.status === "loading" ? { text: "reading…", tone: "muted" } : null;
   }

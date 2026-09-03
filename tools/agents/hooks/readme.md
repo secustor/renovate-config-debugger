@@ -46,7 +46,10 @@ blocks the stop if any fail, handing back the tail of the failing output.
   takes minutes — running it stays a deliberate step
   (`pnpm --filter @renovate-config-debugger/app build` then `… test:e2e`).
 
-Markdown-only changes skip everything, since none of the checks read prose.
+Markdown-only changes skip everything, since none of the checks read prose —
+except the handful of docs `tools/docs/privacy-claims.spec.ts` pins to the
+worker config. Those are not exempt: they run the always-checks and
+`pnpm test:tools`, but none of the package suites.
 
 Two things keep it from getting in the way:
 

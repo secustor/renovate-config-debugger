@@ -17,7 +17,6 @@ export function PinHeadRow({
   name,
   context,
   summary,
-  pending,
   starter = false,
 }: {
   check: PinCheck;
@@ -26,8 +25,6 @@ export function PinHeadRow({
   context: string;
   /** The outcome sentence, or null when there is no outcome yet. */
   summary: string | null;
-  /** What stands in for the sentence while `summary` is null. */
-  pending?: string;
   /** Roadmap 091: this descriptor was derived from the reader's own rules, not
    *  written by them — said on the row, since it is the row's own claim. */
   starter?: boolean;
@@ -46,7 +43,9 @@ export function PinHeadRow({
       ) : null}
       <span className="pin-meta">{context}</span>
       {summary === null ? (
-        <span className="pin-pending">{pending}</span>
+        <span className="pin-pending" title={check.status === "failed" ? check.error : undefined}>
+          {check.status === "failed" ? "could not be checked" : "checking…"}
+        </span>
       ) : (
         <span className="pin-summary">{summary}</span>
       )}

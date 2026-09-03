@@ -40,7 +40,9 @@ function sessionToken(key: string): string | undefined {
   return value !== null && isValidToken(value) ? value : undefined;
 }
 
-export interface RunOptions {
+/** What a run may ask of its CREDENTIALS — App.tsx's own `RunOptions` is the
+ *  caller-side shape, and forwards its `suppressTokens` into this one. */
+export interface RunAuthOptions {
   /**
    * Security 2026-07-25: run with NO credentials at all. Set while an
    * `UntrustedEndpointGuard` stands — a share link pointed the platform
@@ -62,7 +64,7 @@ export interface RunOptions {
  * 076's custom credential rows ride along in the same object as `hostRules`,
  * so the `suppressTokens` overwrite below covers them too.
  */
-function applyAuth(engine: Engine, oauthToken: string | null, opts?: RunOptions): void {
+function applyAuth(engine: Engine, oauthToken: string | null, opts?: RunAuthOptions): void {
   if (opts?.suppressTokens) {
     // Overwrite (never just skip): `setPresetAuth` replaces module state a
     // PREVIOUS run may have populated, so this is what actually guarantees no
@@ -124,7 +126,7 @@ function makeAuthRefreshHandler(engine: Engine): AuthRefreshHandler {
  * exactly as before, no refresh request leaves the browser for a run that
  * must not use credentials, and no revoked-token recovery may re-attach one.
  */
-async function engineWithAuth(opts?: RunOptions): Promise<Engine> {
+async function engineWithAuth(opts?: RunAuthOptions): Promise<Engine> {
   const [engine, oauthToken] = await Promise.all([
     loadEngine(),
     opts?.suppressTokens ? null : getValidToken(),
@@ -138,7 +140,7 @@ async function engineWithAuth(opts?: RunOptions): Promise<Engine> {
  * `loadEngine` keeps the heavy renovate chunk out of the initial page load;
  * Vite code-splits it automatically behind that call.
  */
-export async function run(input: PipelineInput, opts?: RunOptions): Promise<TraceResult> {
+export async function run(input: PipelineInput, opts?: RunAuthOptions): Promise<TraceResult> {
   const engine = await engineWithAuth(opts);
   return engine.runPipeline(input);
 }
@@ -198,7 +200,7 @@ export async function extractPackageJsonConfig(raw: string): Promise<string | nu
  *  a share link chose must not carry credentials either. */
 export async function loadRepoConfig(
   req: RepoConfigRequest,
-  opts?: RunOptions,
+  opts?: RunAuthOptions,
 ): Promise<RepoConfigResult> {
   const engine = await engineWithAuth(opts);
   return engine.fetchRepoConfig(req);
@@ -210,7 +212,7 @@ export async function loadRepoConfig(
  *  it follows did. */
 export async function loadRepoFile(
   req: RepoFileRequest,
-  opts?: RunOptions,
+  opts?: RunAuthOptions,
 ): Promise<string | null> {
   const engine = await engineWithAuth(opts);
   return engine.fetchRepoFile(req);
@@ -222,7 +224,7 @@ export async function loadRepoFile(
  *  load it follows did. */
 export async function loadRepoTree(
   req: RepoTreeRequest,
-  opts?: RunOptions,
+  opts?: RunAuthOptions,
 ): Promise<RepoTreeResult> {
   const engine = await engineWithAuth(opts);
   return engine.fetchRepoTree(req);

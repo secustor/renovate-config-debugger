@@ -418,7 +418,7 @@ it("offers the loaded repo's dependencies and pins one from the picker (078)", a
   }
 
   // Quick-pin names the update TYPE; the draft is where the next version goes.
-  fireEvent.click(within(row).getByRole("button", { name: "patch" }));
+  fireEvent.click(within(row).getByRole("button", { name: "Draft a patch update of typescript" }));
   fireEvent.change(view.getByLabelText("newValue", { exact: true }), {
     target: { value: "5.9.0" },
   });
@@ -430,7 +430,9 @@ it("offers the loaded repo's dependencies and pins one from the picker (078)", a
   });
   // …and the row now wears the standing pin's badge instead of quick-pins.
   expect(view.container.textContent).toContain("pinned · patch");
-  expect(within(row).queryByRole("button", { name: "patch" })).toBeNull();
+  expect(
+    within(row).queryByRole("button", { name: "Draft a patch update of typescript" }),
+  ).toBeNull();
 
   // The search row narrows by file too (scoped to the list — the pin card
   // above it now names typescript as well).
@@ -479,7 +481,7 @@ it("caps the list at five rows, counts the tail, and drafts inline under its row
   if (!row) {
     throw new Error("the node row is missing");
   }
-  fireEvent.click(within(row).getByRole("button", { name: "patch" }));
+  fireEvent.click(within(row).getByRole("button", { name: "Draft a patch update of node" }));
   const holder = row.nextElementSibling;
   expect(holder?.className).toBe("pin-repo-draft-row");
   expect(holder?.querySelector(".pin-repo-draft")).not.toBeNull();

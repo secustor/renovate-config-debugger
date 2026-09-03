@@ -121,6 +121,16 @@ describe("extract", () => {
     expect(run.stderr).toContain("name a file");
   });
 
+  /** A second file used to be dropped in silence, so the exit code reported
+   *  the first file's extraction over one that was never read. */
+  test("a second file is an error naming it, not a silent one-file extraction", async () => {
+    const path = await materialize("package.json", "package.json");
+    const run = await runCli(["extract", path, "other/package.json"]);
+    expect(run.code).toBe(1);
+    expect(run.stderr).toContain("does not take");
+    expect(run.stderr).toContain("other/package.json");
+  });
+
   test("--help documents the pattern-less-manager door", async () => {
     const run = await runCli(["extract", "--help"]);
     expect(run.code).toBe(0);

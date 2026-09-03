@@ -7,12 +7,13 @@
    across the cascade for it (`.pin-add-tabs .tab`) — a second, unrelated
    surface styling a primitive out of a feature's stylesheet.
 
-   WHY THIS FILE IS LAST, not up with 01-shell / 02-controls where a primitive
-   belongs by rights: the numbering encodes the pre-split `index.css` cascade
-   byte-for-byte (see main.tsx), so renumbering thirteen files to slot this in
-   would put the documented equal-specificity couplings at risk for a purely
-   cosmetic gain — it would move 10 above 01 (`main.app-shell`) or 03 above 02
-   (`.seg button`). Appending is the move main.tsx's own header sanctions.
+   WHY THIS FILE WAS APPENDED rather than renumbered up with 01-shell /
+   02-controls where a primitive belongs by rights: the numbering encodes the
+   pre-split `index.css` cascade byte-for-byte (see main.tsx), so renumbering
+   thirteen files to slot this in would put the documented equal-specificity
+   couplings at risk for a purely cosmetic gain — it would move 10 above 01
+   (`main.app-shell`) or 03 above 02 (`.seg button`). Appending is the move
+   main.tsx's own header sanctions.
 
    Verified safe before moving: the only rules outside this block that target
    `.tab` or `.tab-bar` are `15-pins.css`'s `.pin-add-tabs .tab` and

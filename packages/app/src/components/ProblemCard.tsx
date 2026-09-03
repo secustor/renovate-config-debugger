@@ -130,16 +130,25 @@ function ProblemFix({
 }
 
 /** Everything below the message: the explanation when 014 knows one, and
- *  either the fix or the honest note that there isn't one. */
+ *  either the fix or the honest note that there isn't one — and nothing at all
+ *  until the library has answered, so the note is never a claim about an
+ *  unloaded library. For that window the card wears the same shape
+ *  `PresetProblemCard` ships — message flush to the bottom border, since the
+ *  card's bottom padding lives on `.problem-body`. */
 function ProblemBody({
   explanation,
   fix,
+  libReady,
   onApplyFix,
 }: {
   explanation?: string;
   fix: ErrorFixResult | null;
+  libReady: boolean;
   onApplyFix?: (fix: ErrorFixResult) => void;
 }) {
+  if (!libReady) {
+    return null;
+  }
   return (
     <div className="problem-body">
       {explanation ? <p className="problem-explain">{explanation}</p> : null}
@@ -207,6 +216,7 @@ export function ProblemCard({
       <ProblemBody
         explanation={translated?.explanation}
         fix={translated?.fix ?? null}
+        libReady={errorLib !== null}
         onApplyFix={onApplyFix}
       />
     </li>

@@ -7,6 +7,7 @@
  * unchanged from Renovate's; only the underlying transports are the browser
  * shims.
  */
+import { ownValue } from "../../is";
 import { GlobalConfig } from "../../renovate-adapter";
 import * as forgejo from "./forgejo";
 import * as gitea from "./gitea";
@@ -24,10 +25,11 @@ interface Resolver {
   ): Promise<Record<string, unknown> | null>;
 }
 
+// The three classifications below are a hand-port of upstream `getResolver`'s
+// switch; `test/local-preset-platforms.node.test.ts` fails when a bump adds a
+// platform.
 const resolvers: Record<string, Resolver> = { github, gitlab, gitea, forgejo };
 
-// The three sets below are a hand-port of upstream `getResolver`'s switch;
-// `test/local-preset-platforms.node.test.ts` fails when a bump adds a platform.
 // Reachable only via a real Renovate run (their platform APIs have no browser
 // fetcher — either no CORS or no prefix of their own in this tool).
 const RUN_ONLY = new Set(["azure", "bitbucket", "bitbucket-server", "gerrit"]);
@@ -38,7 +40,10 @@ export const getPreset = makeInjectableGetPreset("local", (repo, presetName, pre
   const platform = (GlobalConfig.get("platform") as string | undefined) ?? "github";
   const endpoint = GlobalConfig.get("endpoint") as string | undefined;
 
-  const resolver = resolvers[platform];
+  // Own-key lookup, not a bare bracket read: a `platform` of `constructor` /
+  // `toString` would otherwise hand back an Object.prototype member instead of
+  // falling through to the honest message below.
+  const resolver = ownValue(resolvers, platform);
   if (resolver) {
     return resolver.getPresetFromEndpoint(repo, presetName, presetPath, endpoint, tag);
   }

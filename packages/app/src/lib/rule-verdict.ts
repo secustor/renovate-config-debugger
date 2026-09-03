@@ -36,7 +36,9 @@
  * Renovate. `.oxlintrc.json` bans the root spelling under
  * `packages/app/src/**` so it cannot come back, and
  * `src/oxlint-boundaries.test.ts` keeps that ban from being dropped by an
- * override that forgets to restate it.
+ * override that forgets to restate it. The half that ban does not cover — the
+ * subpath's own closure staying Renovate-free — is
+ * `engine/test/import-free-subpaths.node.test.ts`.
  */
 export {
   hasEvaluationError,

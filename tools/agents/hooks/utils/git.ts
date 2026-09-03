@@ -56,7 +56,9 @@ export interface WorkingSet {
 
 export async function getWorkingSet(root: string): Promise<WorkingSet> {
   const base = await getBaseRef(root);
-  const tracked = lines(await git(["diff", "--name-only", "--diff-filter=ACMR", base], root));
+  // No `--diff-filter`, and renames off: a deletion and BOTH halves of a move
+  // have to reach the set, which only ever string-matches these paths.
+  const tracked = lines(await git(["diff", "--name-only", "--no-renames", base], root));
   // `git diff` only sees files git already knows about, so a brand-new source
   // file — the case where running the tests matters most — is invisible to it.
   const untracked = lines(await git(["ls-files", "--others", "--exclude-standard"], root));

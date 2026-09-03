@@ -300,6 +300,20 @@ describe("run_config", () => {
     expect(note).not.toContain("platformOverride: true");
     expect(note).not.toContain("--trust-endpoints");
   });
+
+  /** The layer guard the CLI's `--global-config` has always had: the record
+   *  schema drops a TOP-LEVEL `__proto__`, so the case that reached the
+   *  pipeline over MCP alone is a nested one. `JSON.parse`, not a literal — a
+   *  literal cannot express an own `__proto__` data property (roadmap 030). */
+  test("a polluted config layer is rejected here as it is on the CLI", async () => {
+    await expect(
+      call("run_config", {
+        fileName: "renovate.json",
+        content: CONFIG,
+        globalConfig: JSON.parse('{"packageRules":[{"__proto__":{"x":1}}]}') as unknown,
+      }),
+    ).rejects.toThrow(/globalConfig must be a JSON object/);
+  });
 });
 
 describe("credential isolation", () => {

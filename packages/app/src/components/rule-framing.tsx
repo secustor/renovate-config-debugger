@@ -134,26 +134,18 @@ function FramingBreakdown({ framing, showCopy }: { framing: RuleFramingData; sho
  * "713 (713 from your config)" both say the count twice and add nothing. When
  * one source covers every rule, say "all" instead.
  */
-function CompactBreakdown({
-  framing,
-  total,
-  showCopy,
-}: {
-  framing: RuleFramingData;
-  total: number;
-  showCopy?: boolean;
-}) {
+function CompactBreakdown({ framing, total }: { framing: RuleFramingData; total: number }) {
   if (framing.own === total && !framing.top) {
     return "all from your config";
   }
   if (framing.own === 0 && framing.top && framing.top.count === total) {
     return (
       <>
-        all pulled in by <ContributorLabel top={framing.top} showCopy={showCopy} />
+        all pulled in by <ContributorLabel top={framing.top} />
       </>
     );
   }
-  return <FramingBreakdown framing={framing} showCopy={showCopy} />;
+  return <FramingBreakdown framing={framing} />;
 }
 
 /**

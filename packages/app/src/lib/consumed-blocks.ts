@@ -3,6 +3,7 @@ import type {
   RuleAttribution,
   SimulationResult,
 } from "@renovate-config-debugger/engine";
+import { ruleOriginLayer } from "./rule-filters";
 
 /**
  * Roadmap 047: an update-type block the USER authored (per the engine's
@@ -28,6 +29,10 @@ export interface ConsumedBlock {
  * to the whole block: only when EXACTLY ONE matched rule merged that key, and
  * only when that rule traces to a preset. A block that came from the base
  * config, or one several rules touched, is left uncredited rather than guessed.
+ *
+ * The preset credited is the ORIGINATING body, via `ruleOriginLayer`
+ * (rule-filters.ts) — the nested preset that wrote the rule, not the direct
+ * extend it arrived through.
  */
 function blockSourceLayer(
   sim: SimulationResult,
@@ -41,7 +46,8 @@ function blockSourceLayer(
     return undefined;
   }
   const attribution = ruleAttribution?.find((a) => a.index === setters[0]?.index);
-  return attribution?.layer.kind === "preset" ? attribution.layer : undefined;
+  const origin = attribution ? ruleOriginLayer(attribution) : undefined;
+  return origin?.kind === "preset" ? origin : undefined;
 }
 
 export function consumedAuthoredBlocks(

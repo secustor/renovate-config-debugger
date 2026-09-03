@@ -36,6 +36,10 @@ export function processIo() {
  * truncated the answer, so it is reported and sets a nonzero exit code — which
  * both bins preserve (`… = (await main(…)) || process.exitCode`), since the
  * event normally arrives while main is still awaited.
+ *
+ * `test/bin.test.ts`'s "a peer that stops reading is not a crash" covers the
+ * EPIPE arm only; the non-EPIPE arm above, and the exit code it sets, are
+ * still unasserted.
  */
 function guardStdio() {
   if (process.stderr.listenerCount("error") === 0) {

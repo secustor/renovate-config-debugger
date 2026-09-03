@@ -27,6 +27,8 @@ const bundledEngine = fileURLToPath(new URL("./dist/engine-surface.js", import.m
  *   `test/bundle/` holds the suites that drive the built artifact directly —
  *   the subdirectory is what keeps them out of the "cli" project's
  *   `test/*.test.ts` glob, so `pnpm test` never fails for a missing `dist/`.
+ *   Those cover the bin's own build-only divergences (help, dispatch, the MCP
+ *   transport), which the inlining can break with every `src/` suite green.
  */
 export default defineConfig({
   test: {

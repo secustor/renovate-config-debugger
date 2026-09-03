@@ -86,6 +86,49 @@ import { defineRule, type ESTree } from "@oxlint/plugins";
  * it. The import differs per package and the messages say so: `@/lib/format` in
  * the app, `@renovate-config-debugger/app/headless` in the CLI, which re-exports
  * both from that same file.
+ *
+ * SWEEP V WIDENS IT ONCE MORE, to the noun that is hard-spelled beside a
+ * `nf.format(n)` with no ternary at all — the same divergence with the
+ * conditional deleted, so a count of one renders "1 rules". It reached users
+ * three times in one commit's findings (PinsView's "1 rules evaluated per
+ * test", TreeRow's "· 1 presets", OriginFraming's collapsed sentence, all
+ * fixed in 2613e96e onto `plural`), and it is invisible in review because every
+ * copy is correct at the counts a reviewer pictures.
+ *
+ * `nf` IS THE SUBJECT because there is exactly one of it: a single shared
+ * `Intl.NumberFormat` exported from `packages/app/src/lib/format.ts` and
+ * imported under that name in both packages, so matching the callee's source
+ * text needs no type information and cannot mean anything else.
+ *
+ * THREE NARROWINGS, each measured over all 53 `nf.format(` sites in the tree,
+ * of which exactly five are followed by a lowercase word ending in "s":
+ *
+ *   - ALL-LOWERCASE. A camelCase token after the count is a quoted Renovate
+ *     config key, not English prose, and this is what structurally excludes the
+ *     one false positive in the tree — `LedgerFamilies`' `{nf.format(totalRules)}
+ *     packageRules`, where `plural(n, "packageRule")` would rename the key to
+ *     make the sentence agree.
+ *   - FOUR CHARACTERS OR MORE, and never ending "ss", "us", "is" or "ies" —
+ *     across, less, status, focus, analysis, basis; dependencies, properties,
+ *     entries. The first three are singulars that merely end in "s"; the "-ies"
+ *     class is the likeliest plural in this tree and `plural` cannot spell it at
+ *     all (`plural(n, "dependencie")` is not advice), which is precisely why
+ *     `countNoun`/`DataTableNoun` exists and why the message names it. None is
+ *     live today and the four real hits end "ps", "rs", "ns", "es".
+ *   - FIRST AFTER EXACTLY ONE RENDERED SPACE, the adjacency requirement the arms
+ *     above already impose: a sentence with a word between (`} of `, `} more `,
+ *     `} matched`) is not a shape `plural` can express, and it is why the other
+ *     48 sites are out of shape. RENDERED is the load-bearing word — an oxfmt
+ *     wrap rewrites the separator as `{" "}` without changing a pixel of the
+ *     output, and four such shapes are live here, so the arm reads that spelling
+ *     too rather than falling silent on a line-width accident. An ELEMENT
+ *     between (`<strong>{nf.format(n)}</strong> rules`) is the one adjacency
+ *     escape left, and it stays silent for the arm above's reason: the count is
+ *     in its own element, which is chrome `plural` cannot produce.
+ *
+ * NEITHER HOME SELF-REPORTS, so this arm needs no exemption of its own:
+ * `plural`'s body and `countNoun`'s both put an EXPRESSION after the space, not
+ * a word.
  */
 
 const HELPER = "pluralWord";
@@ -142,6 +185,45 @@ function renderedChildren(children: readonly ESTree.JSXChild[]): Rendered[] {
   return rendered;
 }
 
+/** The one shared `Intl.NumberFormat`, matched by source text — there is a
+ *  single declaration of `nf` in the tree and every importer keeps the name. */
+const COUNT_CALLEE = "nf.format";
+
+/** `nf.format(<count>)` — the formatted count, one argument exactly. */
+function countCall(
+  node: ESTree.JSXExpression | ESTree.Expression,
+  textOf: TextOf,
+): ESTree.CallExpression | undefined {
+  if (node.type !== "CallExpression" || node.arguments.length !== 1) {
+    return undefined;
+  }
+  return textOf(node.callee) === COUNT_CALLEE ? node : undefined;
+}
+
+/** One space, then a word `plural` could have spelled: all-lowercase, four
+ *  characters or more, ending in a bare "s", and nothing before it. */
+const PLURAL_NOUN = /^ ([a-z]{3,}s)\b/;
+
+/** The same noun after a wrapped `{" "}`, which IS the space: the word opens the
+ *  text run, behind at most the newline-indent JSX strips to nothing. Any other
+ *  leading whitespace would render a second space, which `plural` never prints. */
+const WRAPPED_PLURAL_NOUN = /^(?:[^\S\n]*\n\s*)?([a-z]{3,}s)\b/;
+
+/** Words `plural` cannot spell from a singular: the ones that merely END in "s"
+ *  (it would write "acrosss") and the "-ies" stem splice, whose singular is not
+ *  the word minus its "s" — `dependencies`, `properties`, `entries`. That class
+ *  is what `countNoun` exists for, so guessing it here would be wrong advice. */
+const NOT_A_PLURAL = /(?:ss|us|is|ies)$/;
+
+/** The singular of the hard-spelled plural that opens `text`, if it is one. */
+function hardSpelledPlural(text: string, pattern: RegExp): string | undefined {
+  const word = pattern.exec(text)?.[1];
+  if (word === undefined || NOT_A_PLURAL.test(word)) {
+    return undefined;
+  }
+  return word.slice(0, -1);
+}
+
 /** The `1` in `n === 1` / `1 === n`. */
 function isOne(node: ESTree.Node): boolean {
   return node.type === "Literal" && node.value === 1;
@@ -171,6 +253,8 @@ export default defineRule({
         "Use `plural(n, word)` from `@/lib/format` instead of writing the count next to `pluralWord(n, word)` — `plural` runs the count through the shared `nf` and this pair interpolates it raw, so the two spellings diverge the moment the number reaches four figures.",
       preferPluralWord:
         'Use `pluralWord(n, "{{word}}")` — or `plural(n, "{{word}}")` where the count prints right beside the noun — from `@/lib/format` (`@renovate-config-debugger/app/headless` in the CLI) instead of hand-spelling the regular plural in a ternary: one argument feeds both the count and the word, so they cannot disagree the way `1 of 2 rule hidden` did.',
+      preferPluralNoun:
+        'Use `plural(n, "{{word}}")` from `@/lib/format` (`@renovate-config-debugger/app/headless` in the CLI) — or `countNoun(n, noun)` from `@/components/data-table` when the plural is irregular, which is app-only — instead of hard-spelling a plural noun beside `nf.format(n)`: one argument feeds the count and the noun together, so a count of one cannot render "1 {{word}}s".',
       preferPluralSuffix:
         'Use `plural(n, word)` from `@/lib/format` (`@renovate-config-debugger/app/headless` in the CLI) instead of appending a hand-spelled "s" from a ternary — `plural` prints the count and the noun from one argument, and runs the count through the shared `nf` rather than interpolating it raw.',
     },
@@ -205,12 +289,40 @@ export default defineRule({
       }
     };
 
+    // `{nf.format(n)} rules` — the noun opens the count's next rendered text,
+    // either behind the space that is part of that text or behind the `{" "}`
+    // the formatter leaves in its place when the line wraps. Both render the one
+    // space `plural` prints, so both are the same site.
+    const checkCountedNouns = (children: readonly ESTree.JSXChild[]): void => {
+      const kids = renderedChildren(children);
+      for (const [index, child] of kids.entries()) {
+        if (child === SPACE || child.type !== "JSXExpressionContainer") {
+          continue;
+        }
+        const call = countCall(child.expression, textOf);
+        const wrapped = kids[index + 1] === SPACE;
+        const next = kids[index + (wrapped ? 2 : 1)];
+        if (call === undefined || next === undefined || next === SPACE) {
+          continue;
+        }
+        const word =
+          next.type === "JSXText"
+            ? hardSpelledPlural(next.value, wrapped ? WRAPPED_PLURAL_NOUN : PLURAL_NOUN)
+            : undefined;
+        if (word !== undefined) {
+          context.report({ node: call, messageId: "preferPluralNoun", data: { word } });
+        }
+      }
+    };
+
     return {
       JSXElement(node) {
         checkChildren(node.children);
+        checkCountedNouns(node.children);
       },
       JSXFragment(node) {
         checkChildren(node.children);
+        checkCountedNouns(node.children);
       },
       // `n === 1 ? "rule" : "rules"` — a regular plural spelled out by hand.
       // Reported only when the two branches differ by exactly a trailing "s",
@@ -245,6 +357,19 @@ export default defineRule({
           }
           if (node.quasis[index]?.value.raw === " " && textOf(previous) === textOf(count)) {
             context.report({ node: call, messageId: "preferPlural" });
+          }
+        }
+        // `` `${nf.format(n)} rules` `` — the quasi that FOLLOWS the count is
+        // the one that would open with the hard-spelled noun.
+        for (const [index, expression] of node.expressions.entries()) {
+          const call = countCall(expression, textOf);
+          const following = node.quasis[index + 1];
+          if (call === undefined || following === undefined) {
+            continue;
+          }
+          const word = hardSpelledPlural(following.value.raw, PLURAL_NOUN);
+          if (word !== undefined) {
+            context.report({ node: call, messageId: "preferPluralNoun", data: { word } });
           }
         }
       },

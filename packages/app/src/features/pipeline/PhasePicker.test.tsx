@@ -71,7 +71,7 @@ describe("PhasePicker", () => {
         ],
       },
     });
-    const segment = ready.getByRole("radio", { name: "Extract, +1 deps" });
+    const segment = ready.getByRole("radio", { name: "Extract, +1 dep" });
     expect(segment.querySelector(".phase-seg-note.ok")).toBeTruthy();
   });
 

@@ -233,7 +233,11 @@ function ConfigPhase({
           onIndexChange={onMigrationStepChange}
         />
       ) : null}
-      {deferredStage === "migrate" && !migrateStepperMounted ? (
+      {/* Only for a migrate that actually ran clean: a skipped or errored stage
+          has StageDiff's own message above, and this note would contradict it. */}
+      {deferredStage === "migrate" &&
+      !migrateStepperMounted &&
+      result.stageStatus.migrate === "ok" ? (
         <EmptyNote>No rewrites — this config already uses current option names.</EmptyNote>
       ) : null}
     </>
