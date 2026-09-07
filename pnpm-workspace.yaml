@@ -7,6 +7,8 @@ allowBuilds:
   # esbuild and workerd (via wrangler) get their platform binaries from
   # optionalDependencies; their install scripts only re-validate the binary.
   esbuild: false
+  # protobufjs 7.x postinstall only prints a version-scheme warning.
+  protobufjs: false
   re2: false
   workerd: false
 
