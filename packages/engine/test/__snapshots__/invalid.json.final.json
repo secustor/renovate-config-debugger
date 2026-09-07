@@ -87,7 +87,7 @@
   "customDatasources": {},
   "dockerChildPrefix": "renovate_",
   "dockerCliOptions": null,
-  "dockerSidecarImage": "ghcr.io/renovatebot/base-image:13.89.3",
+  "dockerSidecarImage": "ghcr.io/renovatebot/base-image:13.95.6",
   "dockerUser": "12021",
   "composerIgnorePlatformReqs": [],
   "goGetDirs": [
@@ -283,7 +283,8 @@
     "commitMessageSuffix": "[SECURITY]",
     "branchTopic": "{{{datasource}}}-{{{depNameSanitized}}}-vulnerability",
     "prCreation": "immediate",
-    "vulnerabilityFixStrategy": "lowest"
+    "vulnerabilityFixStrategy": "lowest",
+    "prConcurrentLimit": 0
   },
   "osvVulnerabilityAlerts": false,
   "pruneBranchAfterAutomerge": true,
@@ -439,6 +440,11 @@
   "ansible-galaxy": {
     "managerFilePatterns": [
       "/(^|/)(galaxy|requirements)(\\.ansible)?\\.ya?ml$/"
+    ]
+  },
+  "apm": {
+    "managerFilePatterns": [
+      "/(^|/)apm\\.ya?ml$/"
     ]
   },
   "argocd": {

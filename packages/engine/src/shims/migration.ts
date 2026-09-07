@@ -50,7 +50,7 @@ type AnyConfig = Record<string, any>;
 const options = getOptions();
 
 export function fixShortHours(input: string): string {
-  return input.replace(regEx(/( \d?\d)((a|p)m)/g), "$1:00$2");
+  return input.replace(regEx(/(?<hours> \d?\d)(?<meridiem>(?:a|p)m)/g), "$<hours>:00$<meridiem>");
 }
 
 /** Shared, mutable full-document context threaded through the recursion. */

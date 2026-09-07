@@ -1,7 +1,7 @@
 /**
  * GENERATED FILE — do not hand-edit.
  *
- * Produced by `scripts/generate-registry-names.mjs` from renovate@44.42.1's
+ * Produced by `scripts/generate-registry-names.mjs` from renovate@44.64.1's
  * own datasource/manager registries (`renovate/dist/modules/{datasource,manager}/api.js`).
  * Regenerate with `pnpm --filter @renovate-config-debugger/engine generate:registries`
  * after bumping the `renovate` dependency — see that script's header for why
@@ -9,6 +9,7 @@
  */
 
 export const DATASOURCE_NAMES: readonly string[] = [
+  "apk",
   "artifactory",
   "aws-eks-addon",
   "aws-machine-image",
@@ -96,6 +97,7 @@ export const MANAGER_NAMES: readonly string[] = [
   "ansible",
   "ansible-galaxy",
   "ant",
+  "apm",
   "argocd",
   "asdf",
   "azure-pipelines",
