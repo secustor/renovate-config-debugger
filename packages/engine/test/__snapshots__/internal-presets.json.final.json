@@ -104,7 +104,7 @@
   "customDatasources": {},
   "dockerChildPrefix": "renovate_",
   "dockerCliOptions": null,
-  "dockerSidecarImage": "ghcr.io/renovatebot/base-image:13.89.3",
+  "dockerSidecarImage": "ghcr.io/renovatebot/base-image:13.95.6",
   "dockerUser": "12021",
   "composerIgnorePlatformReqs": [],
   "goGetDirs": [
@@ -6886,6 +6886,22 @@
     },
     {
       "description": [
+        "tunit monorepo",
+        "Group packages from tunit monorepo together."
+      ],
+      "matchSourceUrls": [
+        "https://github.com/thomhurst/TUnit"
+      ],
+      "groupName": "tunit monorepo",
+      "matchUpdateTypes": [
+        "digest",
+        "patch",
+        "minor",
+        "major"
+      ]
+    },
+    {
+      "description": [
         "turbo monorepo",
         "Group packages from turbo monorepo together."
       ],
@@ -7122,6 +7138,22 @@
         "https://github.com/airbnb/visx"
       ],
       "groupName": "visx monorepo",
+      "matchUpdateTypes": [
+        "digest",
+        "patch",
+        "minor",
+        "major"
+      ]
+    },
+    {
+      "description": [
+        "vite-plus monorepo",
+        "Group packages from vite-plus monorepo together."
+      ],
+      "matchSourceUrls": [
+        "https://github.com/voidzero-dev/vite-plus"
+      ],
+      "groupName": "vite-plus monorepo",
       "matchUpdateTypes": [
         "digest",
         "patch",
@@ -7783,6 +7815,7 @@
     {
       "matchPackageNames": [
         "oxlint",
+        "@oxlint/plugins",
         "eslint-plugin-oxlint"
       ],
       "description": [
@@ -8105,6 +8138,13 @@
       "groupName": "micrometer",
       "matchPackageNames": [
         "io.micrometer:micrometer-**"
+      ]
+    },
+    {
+      "groupName": "octokit packages",
+      "groupSlug": "octokit",
+      "matchPackageNames": [
+        "@octokit/**"
       ]
     },
     {
@@ -9857,6 +9897,15 @@
     },
     {
       "matchDatasources": [
+        "docker"
+      ],
+      "matchPackageNames": [
+        "gcr.io/openssf/scorecard"
+      ],
+      "replacementName": "ghcr.io/ossf/scorecard"
+    },
+    {
+      "matchDatasources": [
         "npm"
       ],
       "matchPackageNames": [
@@ -10262,6 +10311,19 @@
       "versioning": "docker"
     },
     {
+      "description": [
+        "Use partial semver versioning for partial mise Java versions so rolling versions (e.g. 21) are not upgraded to full-precision versions (e.g. 21.0.11+9.0.LTS)."
+      ],
+      "matchCurrentValue": "/^\\d+(?:\\.\\d+)?$/",
+      "matchDatasources": [
+        "java-version"
+      ],
+      "matchManagers": [
+        "mise"
+      ],
+      "versioning": "semver-partial"
+    },
+    {
       "allowedVersions": "/^(?:jdk|jdk-all|jre)-(?:8|11|17|21|25)(?:\\.|-|$)/",
       "description": [
         "Limit Java runtime versions to LTS releases. To receive all major releases add `workarounds:javaLTSVersions` to the `ignorePresets` array."
@@ -10641,7 +10703,8 @@
     "commitMessageSuffix": "[SECURITY]",
     "branchTopic": "{{{datasource}}}-{{{depNameSanitized}}}-vulnerability",
     "prCreation": "immediate",
-    "vulnerabilityFixStrategy": "lowest"
+    "vulnerabilityFixStrategy": "lowest",
+    "prConcurrentLimit": 0
   },
   "osvVulnerabilityAlerts": false,
   "pruneBranchAfterAutomerge": true,
@@ -10826,6 +10889,11 @@
   "ansible-galaxy": {
     "managerFilePatterns": [
       "/(^|/)(galaxy|requirements)(\\.ansible)?\\.ya?ml$/"
+    ]
+  },
+  "apm": {
+    "managerFilePatterns": [
+      "/(^|/)apm\\.ya?ml$/"
     ]
   },
   "argocd": {
