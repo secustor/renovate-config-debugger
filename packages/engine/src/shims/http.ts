@@ -1,7 +1,8 @@
 /**
  * Browser stub for renovate's got-backed http stack (roadmap 078): mapped over
- * util/http/got.js, util/http/http.js, util/http/index.js, util/http/gitlab.js
- * AND util/http/keep-alive.js (that last for its module-scope agentkeepalive
+ * util/http/got.js, util/http/http.js, util/http/index.js, util/http/gitlab.js,
+ * util/http/bitbucket.js (imports `RequestError` from got at module scope since
+ * renovate 44.64) AND util/http/keep-alive.js (that last for its module-scope agentkeepalive
  * construction, not for the got class surface). Manager extract files import
  * datasource CLASSES just to read their static `.id`, and those classes reach
  * `Http`/`HttpBase`/`RequestError` at module scope — without this stub any
@@ -131,6 +132,12 @@ export class Http extends HttpBase {}
 
 export class GitlabHttp extends HttpBase {
   constructor(type = "gitlab", options?: unknown) {
+    super(type, options);
+  }
+}
+
+export class BitbucketHttp extends HttpBase {
+  constructor(type = "bitbucket", options?: unknown) {
     super(type, options);
   }
 }

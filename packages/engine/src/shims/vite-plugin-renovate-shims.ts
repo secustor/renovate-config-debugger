@@ -60,6 +60,7 @@ export function renovateShims(): Plugin {
       "util/http/http.js": "http.ts",
       "util/http/index.js": "http.ts",
       "util/http/gitlab.js": "http.ts",
+      "util/http/bitbucket.js": "http.ts",
       "util/http/keep-alive.js": "http.ts",
       // Heavy lookup-only leaves (@aws-sdk, google-auth-library, simple-git):
       "modules/datasource/docker/ecr.js": "extract-leaves.ts",

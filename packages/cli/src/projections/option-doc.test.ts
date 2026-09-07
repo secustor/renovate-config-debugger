@@ -79,12 +79,12 @@ describe("optionDocLines", () => {
     expect(text).toContain("--format json for all");
   });
 
-  test("129 parents do not become a wall of text", () => {
+  test("130 parents do not become a wall of text", () => {
     const lines = linesFor("enabled");
     expect(lines.length).toBeLessThanOrEqual(12);
     const placement = lines.find((line) => line.startsWith("placement:")) ?? "";
     expect(placement).toContain("the top level, or inside");
-    expect(placement).toContain("+120 more");
+    expect(placement).toContain("+121 more");
     expect(placement.length).toBeLessThan(220);
   });
 
