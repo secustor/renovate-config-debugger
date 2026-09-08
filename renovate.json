@@ -19,7 +19,7 @@
         "commands": [
           "pnpm install --frozen-lockfile",
           "pnpm --filter @renovate-config-debugger/engine generate:registries",
-          "pnpm --filter @renovate-config-debugger/engine exec vitest run --project golden --update"
+          "pnpm --filter @renovate-config-debugger/engine exec vitest run --project golden --update --exclude test/migration-drift.node.test.ts"
         ],
         "executionMode": "update",
         "fileFilters": [
