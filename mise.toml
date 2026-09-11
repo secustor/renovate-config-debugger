@@ -1,6 +1,6 @@
 [tools]
 node = "26.8.2"
-pnpm = "12.3.4"
+pnpm = "12.4.0"
 
 [hooks]
 # Local convenience only. CI must NOT install here: jdx/mise-action runs
