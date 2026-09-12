@@ -20,7 +20,7 @@
     "@oxlint/plugins": "1.82.0",
     "@semantic-release/exec": "7.1.0",
     "@types/node": "26.5.0",
-    "knip": "6.35.0",
+    "knip": "6.35.1",
     "oxfmt": "0.67.0",
     "oxlint": "1.82.0",
     "oxlint-tsgolint": "7.0.2001",
