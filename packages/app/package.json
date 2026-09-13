@@ -29,7 +29,7 @@
     "react": "19.3.0",
     "react-diff-view": "3.3.3",
     "react-dom": "19.3.0",
-    "zod": "4.5.4"
+    "zod": "4.6.1"
   },
   "devDependencies": {
     "@playwright/test": "1.63.0",
