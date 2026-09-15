@@ -604,7 +604,7 @@ describe("drill-down", () => {
       runId,
       configScope: "package-rules",
     })) as { finalConfig: Record<string, unknown>; configView: { droppedGlobalOnly?: number } };
-    expect(scoped.configView.droppedGlobalOnly).toBe(107);
+    expect(scoped.configView.droppedGlobalOnly).toBe(110);
     expect(scoped.finalConfig).not.toHaveProperty("onboardingConfig");
   });
 
@@ -987,13 +987,13 @@ describe("simulate and compare", () => {
     expect(Object.keys(parsed.finalDependencyConfig).length).toBeGreaterThan(10);
     /**
      * Roadmap 070: this document is "what applyPackageRules produced for ONE
-     * dependency", so the globalOnly class — 107 options a matcher cannot
+     * dependency", so the globalOnly class — 110 options a matcher cannot
      * read and a rule cannot write — is provably inert in it and goes by
      * default. The answer states which view produced it.
      */
     expect(parsed.configView).toMatchObject({
       scope: "package-rules",
-      droppedGlobalOnly: 107,
+      droppedGlobalOnly: 110,
     });
     expect(parsed.finalDependencyConfig).not.toHaveProperty("onboardingConfig");
     expect(parsed.finalDependencyConfig).not.toHaveProperty("dryRun");
@@ -1863,7 +1863,7 @@ describe("focused by default", () => {
     expect(notes).toContain("`rule: N`");
     // The per-dependency config: the class it dropped, counted, and the scope
     // that keeps it.
-    expect(sim.configView.droppedGlobalOnly).toBe(107);
+    expect(sim.configView.droppedGlobalOnly).toBe(110);
     expect(notes).toContain('detail: "full"');
 
     const comparison = (await call("compare_simulations", { runId, dep: DEP })) as {

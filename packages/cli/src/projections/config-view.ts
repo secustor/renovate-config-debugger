@@ -11,7 +11,7 @@ import { byteLength, preview } from "../output";
  * `projections/tree.ts` is shared by `rcd tree` and `get_preset_tree`.
  *
  * It exists because those documents are unusable as an answer at scale. A
- * `finalDependencyConfig` is ~25 kB over 396 top-level keys, 107 of which are
+ * `finalDependencyConfig` is ~25 kB over 401 top-level keys, 110 of which are
  * `globalOnly` options that no `packageRules` entry can read or write; and
  * `description` — a mergeable array Renovate concatenates on nearly every
  * merge — is re-embedded IN FULL on both sides of every diff that touches it
