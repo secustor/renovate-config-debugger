@@ -347,7 +347,7 @@ const CONFIG_SCOPE = z
   .enum(CONFIG_SCOPES)
   .optional()
   .describe(
-    "Which CLASS of config key to report: `package-rules` drops the ~107 globalOnly options no " +
+    "Which CLASS of config key to report: `package-rules` drops the ~110 globalOnly options no " +
       "packageRule can read or write, `full` keeps everything. The answer always states which " +
       "one produced it, in `configView`.",
   );
@@ -668,7 +668,7 @@ export function createMcpServer(io: CliIo, options?: McpServerOptions): McpServe
           "bytes at this scope — too large to return whole, so this is its key INDEX (each " +
           "option with the bytes its value costs), not the document. Ask again with " +
           '`keys: ["a", "b"]` for the options you care about — `configScope: "package-rules"` ' +
-          "additionally drops the ~107 globalOnly options no packageRule can read — or " +
+          "additionally drops the ~110 globalOnly options no packageRule can read — or " +
           "get_provenance with one `key` for who set it.",
       };
     }, HINTS.finalConfig),

@@ -18,6 +18,7 @@
     "pypi",
     "rubygems"
   ],
+  "internalHostAccess": "warn",
   "useCloudMetadataServices": true,
   "userAgent": "Renovate/{{renovateVersion}} (https://github.com/renovatebot/renovate)",
   "allowedCommands": [],
@@ -87,7 +88,7 @@
   "customDatasources": {},
   "dockerChildPrefix": "renovate_",
   "dockerCliOptions": null,
-  "dockerSidecarImage": "ghcr.io/renovatebot/base-image:13.95.6",
+  "dockerSidecarImage": "ghcr.io/renovatebot/base-image:13.97.9",
   "dockerUser": "12021",
   "composerIgnorePlatformReqs": [],
   "goGetDirs": [
@@ -110,6 +111,7 @@
   "inheritConfigRepoName": "{{parentOrg}}/renovate-config",
   "inheritConfigFileName": "org-inherited-config.json",
   "inheritConfigStrict": false,
+  "inheritConfigTrusted": false,
   "requireConfig": "required",
   "optimizeForDisabled": false,
   "dependencyDashboard": false,
@@ -177,6 +179,7 @@
   ],
   "excludeCommitPaths": [],
   "executionTimeout": 15,
+  "exitCodeForErrors": false,
   "registryAliases": {},
   "defaultRegistryUrls": null,
   "registryUrls": null,

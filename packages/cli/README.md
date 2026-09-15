@@ -143,7 +143,7 @@ only ever narrow, so any answer is a subset of the one you would have got
 without them, and every projected payload carries a `configView` saying which
 view produced it.
 
-`--config-scope package-rules` drops the ~107 `globalOnly` options — the ones
+`--config-scope package-rules` drops the ~110 `globalOnly` options — the ones
 read from a self-hosted global config, which no `packageRule` can read or
 write. That is the default where the document is a PER-DEPENDENCY config
 (`simulate`, `compare`), because the class is provably inert there. It is not
@@ -166,7 +166,7 @@ $ rcd simulate renovate.json --dep '{"depName":"react"}' --format json --keys gr
   "configView": {
     "scope": "package-rules",
     "keys": 1,
-    "droppedGlobalOnly": 107,
+    "droppedGlobalOnly": 110,
     "withheld": [{ "key": "onboardingConfig", "reason": "global-only" }]
   }
 }
