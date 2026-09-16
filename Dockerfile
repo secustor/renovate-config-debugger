@@ -23,7 +23,7 @@
 # `npm install --global pnpm@x` tripped: that check only ever accepts `npm ci`,
 # never an exact version. No `mise.lock` — mise.toml pins exact versions, so a
 # lock file would resolve nothing the checksums don't already cover.
-FROM --platform=$BUILDPLATFORM jdxcode/mise:2026.9.9@sha256:a88f300ef4365494b88f8eefd271bb92ba467d4a41835739a714426207215730 AS build
+FROM --platform=$BUILDPLATFORM jdxcode/mise:2026.9.10@sha256:e6263d300a50e3a28f1a3cef3969ab171d4dfa5f3bccdf868ae53c8dbf41685f AS build
 
 # CI is what `mise.toml`'s postinstall hook checks: without it the hook fires a
 # full, unfrozen `pnpm install` here, before any manifest has been copied in.
