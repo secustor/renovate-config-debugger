@@ -105,7 +105,7 @@
   "customDatasources": {},
   "dockerChildPrefix": "renovate_",
   "dockerCliOptions": null,
-  "dockerSidecarImage": "ghcr.io/renovatebot/base-image:13.97.12",
+  "dockerSidecarImage": "ghcr.io/renovatebot/base-image:13.97.13",
   "dockerUser": "12021",
   "composerIgnorePlatformReqs": [],
   "goGetDirs": [
@@ -10093,6 +10093,17 @@
       ],
       "replacementName": "wuchale",
       "replacementVersion": "0.22.0"
+    },
+    {
+      "matchCurrentVersion": "0.18.5",
+      "matchDatasources": [
+        "npm"
+      ],
+      "matchPackageNames": [
+        "xlsx"
+      ],
+      "replacementName": "@e965/xlsx",
+      "replacementVersion": "0.20.3"
     },
     {
       "matchDatasources": [
