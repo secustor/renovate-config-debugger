@@ -267,6 +267,7 @@
   "stopUpdatingLabel": "stop-updating",
   "minimumReleaseAge": null,
   "minimumReleaseAgeBehaviour": "timestamp-required",
+  "minimumReleaseAgeBuffer": "30 minutes",
   "abandonmentThreshold": null,
   "dependencyDashboardReportAbandonment": true,
   "internalChecksAsSuccess": false,
