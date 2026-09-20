@@ -327,8 +327,8 @@ importers:
         specifier: 2.0.3
         version: 2.0.3
       renovate:
-        specifier: 44.97.1
-        version: 44.97.1(supports-color@10.2.2)(typanion@3.14.0)
+        specifier: 44.97.2
+        version: 44.97.2(supports-color@10.2.2)(typanion@3.14.0)
     devDependencies:
       typescript:
         specifier: 7.0.2
@@ -1981,8 +1981,8 @@ packages:
     resolution: {integrity: sha512-KmMz+X68YvrS6aN6TJWtDiH8aCIL2Igcvceh17STHxMUN3KxXsC24COoOXjMOl/Gb+okBwwduMm8PY/WY/0Cpg==}
     engines: {node: ^22.11.0 || >=24.10.0, pnpm: '>=10.0.0'}
 
-  '@renovatebot/pgp@2.0.0':
-    resolution: {integrity: sha512-Rtebxbs+rA2XYfmUndpNldxvpf3dIkyMtvciQk7k4OMMIdCmJGoWscVa+a7iE6wJwxJR0Qdh5euHKQ8Doj3Pyg==}
+  '@renovatebot/pgp@2.0.1':
+    resolution: {integrity: sha512-aOnsCaPCF+xBCqNv9ru5Yo/e18lPMrXgXDOWkFZCmG+7syrRYaRTglE5vut1m2jAxlkYT4P6fAu4GD2MjH88Zw==}
     engines: {node: '>=24.10.0', pnpm: '>=10.0.0'}
 
   '@renovatebot/ruby-semver@5.0.0':
@@ -2967,8 +2967,8 @@ packages:
     resolution: {integrity: sha512-ixNtAJndqh173VQ4KodSdJEI6nuioBWI0V1ITNKhZZsO0pEMoDxz539T4FTTbSZ/xIOSuDnzxLVRqBVSvPNE2g==}
     engines: {node: '>=18.0'}
 
-  cronstrue@3.25.0:
-    resolution: {integrity: sha512-PAPaioNXHMLiUSM8V5sC0bIx5MALUQjjtuDZZWBir5Tau8D676Aoj3Oju/SCaggi4eLG+QPC3IU+dCo30AzDIA==}
+  cronstrue@3.26.0:
+    resolution: {integrity: sha512-PEXTHEir/KllAWMsOQOsv3ZXjI6Y1PA1eVAEM/WhCaesAcCYHldra9pr2jkFH6r/ynbEOAPOGoWYz9NkjP0huA==}
     hasBin: true
 
   cross-spawn@7.0.6:
@@ -5134,8 +5134,8 @@ packages:
   remark@15.0.1:
     resolution: {integrity: sha512-Eht5w30ruCXgFmxVUSlNWQ9iiimq07URKeFS3hNc8cUWy1llX4KDWfyEDZRycMc+znsN9Ux5/tJ/BFdgdOwA3A==}
 
-  renovate@44.97.1:
-    resolution: {integrity: sha512-ghgZRlJ8e2GKQHBr4kNRxQrjRAGkb6S5lcdt1QhqY08Dya9iOowJt2ajuOY9HLVtNY5+v0/GBJHaKV7B+u2khw==}
+  renovate@44.97.2:
+    resolution: {integrity: sha512-IsJD8AQNQByPYLSFvHo2agHrozEQ0h1cxEKL3cOe01P7tl1KoPQRDfan8MWKAX0UhmVaNwdHrEiuB5DSMpja6Q==}
     engines: {node: ^24.11.0, pnpm: ^11.0.0}
     hasBin: true
 
@@ -7618,7 +7618,7 @@ snapshots:
 
   '@renovatebot/pep440@5.0.1': {}
 
-  '@renovatebot/pgp@2.0.0': {}
+  '@renovatebot/pgp@2.0.1': {}
 
   '@renovatebot/ruby-semver@5.0.0': {}
 
@@ -8598,7 +8598,7 @@ snapshots:
 
   croner@10.0.1: {}
 
-  cronstrue@3.25.0: {}
+  cronstrue@3.26.0: {}
 
   cross-spawn@7.0.6:
     dependencies:
@@ -11119,7 +11119,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  renovate@44.97.1(supports-color@10.2.2)(typanion@3.14.0):
+  renovate@44.97.2(supports-color@10.2.2)(typanion@3.14.0):
     dependencies:
       '@aws-sdk/client-codecommit': 3.1117.0
       '@aws-sdk/client-ec2': 3.1117.0
@@ -11156,7 +11156,7 @@ snapshots:
       '@renovatebot/good-enough-parser': 2.0.1
       '@renovatebot/osv-offline': 3.0.10(supports-color@10.2.2)
       '@renovatebot/pep440': 5.0.1
-      '@renovatebot/pgp': 2.0.0
+      '@renovatebot/pgp': 2.0.1
       '@renovatebot/ruby-semver': 5.0.0
       '@sindresorhus/is': 8.1.0
       '@yarnpkg/core': 4.9.1(typanion@3.14.0)
@@ -11174,7 +11174,7 @@ snapshots:
       commander: 15.0.0
       common-tags: 1.8.2
       croner: 10.0.1
-      cronstrue: 3.25.0
+      cronstrue: 3.26.0
       deepmerge: 4.3.1
       dequal: 2.0.3
       detect-indent: 7.0.2
