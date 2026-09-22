@@ -23,7 +23,9 @@
 # `npm install --global pnpm@x` tripped: that check only ever accepts `npm ci`,
 # never an exact version. No `mise.lock` — mise.toml pins exact versions, so a
 # lock file would resolve nothing the checksums don't already cover.
-FROM --platform=$BUILDPLATFORM jdxcode/mise:2026.9.12@sha256:868b004119abb2e7c146618da63371ec65da40bfb0f38a0ec4128ca9e96c057a AS build
+# The `-debian` tag, not the bare one: since 2026.9.11 the plain tag is
+# distroless and has no /bin/sh, so every RUN below fails to start.
+FROM --platform=$BUILDPLATFORM jdxcode/mise:2026.9.12-debian@sha256:e654981f0390647ce8e97bb6857891cc7cc883277c889a010ae553279a894331 AS build
 
 # CI is what `mise.toml`'s postinstall hook checks: without it the hook fires a
 # full, unfrozen `pnpm install` here, before any manifest has been copied in.
@@ -32,6 +34,11 @@ ENV MISE_DATA_DIR=/opt/mise \
     CI=1 \
     PATH=/opt/mise/shims:$PATH
 WORKDIR /repo
+
+# Node's official binaries link libatomic, which this image no longer ships.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libatomic1 \
+    && rm -rf /var/lib/apt/lists/*
 
 # Named explicitly: a bare `mise install` also picks up tools declared outside
 # the repo config.
