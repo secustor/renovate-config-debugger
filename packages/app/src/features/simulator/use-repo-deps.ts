@@ -246,6 +246,7 @@ async function discover(
   }));
   return {
     status: "ready",
+    source: { kind: "repo" },
     repo: repo.repo,
     deps,
     files,

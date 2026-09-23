@@ -14,6 +14,7 @@ function file(path: string, outcome: RepoDepFileOutcome): RepoDepFile {
 function view(files: RepoDepFile[], truncated = false): RepoDepsView {
   return {
     status: "ready",
+    source: { kind: "repo" },
     repo: "acme/webapp",
     deps: [],
     files,

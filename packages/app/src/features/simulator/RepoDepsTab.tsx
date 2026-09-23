@@ -2,6 +2,7 @@ import { type ReactNode, useState } from "react";
 import { countNoun, type DataTableNoun } from "@/components/data-table";
 import { nf, plural } from "@/lib/format";
 import { discoveryCaveats, tallyDiscovery } from "@/lib/discovery-caveats";
+import { isLogSource, logSourceNotes, repoDepsSourceLabel } from "@/lib/repo-deps-source";
 import { filterRepoDeps, hiddenDepFiles, REPO_DEPS_SHOWN, type RepoDraft } from "./repo-deps";
 import type { PinnedTest } from "@/types/simulator";
 import type { RepoDep, RepoDepsView } from "@/types/repo";
@@ -204,8 +205,12 @@ function RepoDepsFootnote({ view, hidden }: { view: RepoDepsView; hidden: readon
     const files = tallyDiscovery(view).extracted;
     parts.push(`${countNoun(view.deps.length, DEP_NOUN)} across ${plural(files, "package file")}`);
   }
-  parts.push(`detected because you loaded this config from ${view.repo}`);
-  parts.push(...discoveryCaveats(view));
+  parts.push(
+    isLogSource(view)
+      ? "taken from the Renovate log you loaded — config edits don’t re-extract"
+      : `detected because you loaded this config from ${view.repo}`,
+  );
+  parts.push(...discoveryCaveats(view), ...logSourceNotes(view));
   return <p className="pin-repo-note">{parts.join(" · ")}</p>;
 }
 
@@ -266,7 +271,7 @@ export function RepoDepsTab({
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
-        <span className="pin-repo-source">from {view.repo}</span>
+        <span className="pin-repo-source">from {repoDepsSourceLabel(view)}</span>
       </div>
       <ul className="pin-repo-list">
         {shown.map((dep) => (

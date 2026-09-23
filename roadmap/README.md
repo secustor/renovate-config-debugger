@@ -100,6 +100,7 @@ Full context and architecture: [docs/Architecture.md](../docs/Architecture.md).
 | [092](092-effective-tab-on-the-data-table.md)           | The Effective tab, on the shared data table                          | M21                  | done                                                                                                                                                 |
 | [093](093-custom-managers-in-discovery.md)              | Custom managers in repo discovery                                    | M21                  | in progress                                                                                                                                          |
 | [094](094-the-merge-stepper-retires.md)                 | The merge stepper retires; the stops stay                            | M21                  | done                                                                                                                                                 |
+| [095](095-load-dependencies-from-a-renovate-log.md)     | Load dependencies from a Renovate log                                | M21                  | in progress                                                                                                                                          |
 
 M5/M6 items derive from the [2026-07 persona UX study](2026-07-persona-ux-study.md):
 three real discussion-board configuration problems, each replayed against the live

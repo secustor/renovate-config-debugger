@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { RepoDiscoveryGate } from "./RepoDiscoveryGate";
-import { CONNECT_OFFER as CONNECT, EMPTY_VIEW as EMPTY } from "@tools/test/repo-deps";
+import { CONNECT_OFFER as CONNECT, EMPTY_VIEW as EMPTY, logView } from "@tools/test/repo-deps";
 import type { RepoDepsView } from "@/types/repo";
 
 /**
@@ -64,6 +64,11 @@ describe("RepoDiscoveryGate", () => {
 
   it("draws the consumer's own report once discovery has reported", () => {
     const view = renderGate(READY);
+    expect(view.container.textContent).toContain(BODY);
+  });
+
+  it("treats a log without a slug as a source, not as no repository (roadmap 095)", () => {
+    const view = renderGate(logView([]));
     expect(view.container.textContent).toContain(BODY);
   });
 

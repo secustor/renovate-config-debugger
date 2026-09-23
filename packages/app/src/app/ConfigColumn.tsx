@@ -7,7 +7,9 @@ import { BuildStamp, BuildVerifyLine } from "@/components/BuildInfo";
 import { type AuthState, GithubAuthHint } from "@/components/GithubAuthHint";
 import { LandingIntro, LandingLaunch, LandingSteps } from "@/features/editor/Landing";
 import { NoticeBar } from "@/features/editor/NoticeBar";
+import { LogLoadOverlay } from "@/features/editor/LogLoadOverlay";
 import { RepoLoadOverlay } from "@/features/editor/RepoLoadOverlay";
+import type { LogDeps } from "@/app/use-log-deps";
 import type { RepoLoad } from "@/app/use-repo-load";
 import { StageRailPreview } from "@/components/StageRail";
 import type { PresetHoverContext } from "@/lib/preset-hover";
@@ -16,6 +18,7 @@ import type { RepoPickerView } from "@/types/repo";
 /** Roadmap 075: what Run refuses while the repo-load overlay is up — the
  *  design's disabled-primary rule, spelled once for both Run buttons. */
 const RUN_BLOCKED_BY_REPO_FORM = "Finish or cancel Load from repo first";
+const RUN_BLOCKED_BY_LOG_FORM = "Finish or cancel Load from log first";
 
 interface ConfigColumnProps {
   /** Roadmap 068: the column element itself. App asks it one question — was the
@@ -42,6 +45,9 @@ interface ConfigColumnProps {
    * contract to break.
    */
   repoLoad: RepoLoad;
+  /** Roadmap 095: the load-from-log cluster, and the loaded log's label. */
+  logDeps: LogDeps;
+  logSource: string | null;
   /** NOT part of `repoLoad`: App owns the reference field, because the
    *  inherited-config layer derives its probe target from the same string
    *  (see `useRepoLoad`'s own note on `repoInput`). */
@@ -123,6 +129,8 @@ export function ConfigColumn({
   onChange,
   presetHover,
   repoLoad,
+  logDeps,
+  logSource,
   repo,
   onRepoChange,
   inheritAuto,
@@ -154,7 +162,25 @@ export function ConfigColumn({
   // Roadmap 075: the repo-load overlay covers the document Run acts on, so Run
   // says why it is refusing rather than acting on a config the user is halfway
   // through replacing.
-  const runBlockedReason = repoLoad.repoFormOpen ? RUN_BLOCKED_BY_REPO_FORM : null;
+  let runBlockedReason: string | null = null;
+  if (repoLoad.repoFormOpen) {
+    runBlockedReason = RUN_BLOCKED_BY_REPO_FORM;
+  } else if (logDeps.formOpen) {
+    runBlockedReason = RUN_BLOCKED_BY_LOG_FORM;
+  }
+  // One overlay at a time: opening either closes the other.
+  const toggleRepoForm = () => {
+    if (logDeps.formOpen) {
+      logDeps.closeForm();
+    }
+    repoLoad.toggleRepoForm();
+  };
+  const toggleLogForm = () => {
+    if (repoLoad.repoFormOpen) {
+      repoLoad.closeRepoForm();
+    }
+    logDeps.toggleForm();
+  };
   // Roadmap 075 (v2, iteration 2): the editor card's title bar IS the config
   // toolbar (file name, Load from repo…, Format/Revert, Run).
   const toolbar = (
@@ -163,7 +189,12 @@ export function ConfigColumn({
       onFileNameChange={onFileNameChange}
       repoFormOpen={repoLoad.repoFormOpen}
       repoToggleRef={repoLoad.repoToggleRef}
-      onToggleRepoForm={repoLoad.toggleRepoForm}
+      onToggleRepoForm={toggleRepoForm}
+      logFormOpen={logDeps.formOpen}
+      logToggleRef={logDeps.toggleRef}
+      onToggleLogForm={toggleLogForm}
+      logSource={logSource}
+      onClearLog={logDeps.clear}
       canRevert={canRevert}
       onRevert={onRevert}
       onFormat={onFormat}
@@ -204,6 +235,14 @@ export function ConfigColumn({
       pickerUser={authUser}
     />
   ) : null;
+  const logOverlay = logDeps.formOpen ? (
+    <LogLoadOverlay
+      loading={logDeps.loading}
+      error={logDeps.error}
+      onLoad={(text) => void logDeps.load(text)}
+      onClose={logDeps.closeForm}
+    />
+  ) : null;
   const editor = (
     <div className="editor-shell">
       <ConfigEditor
@@ -215,7 +254,7 @@ export function ConfigColumn({
         onRun={onRun}
         presetHover={presetHover}
         titleBar={toolbar}
-        overlay={repoOverlay}
+        overlay={repoOverlay ?? logOverlay}
       />
     </div>
   );

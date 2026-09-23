@@ -13,6 +13,7 @@ import type { RepoDep, RepoDepsView } from "@/types/repo";
 /** The idle view the tab renders before any discovery has run. */
 export const EMPTY_REPO_DEPS: RepoDepsView = {
   status: "idle",
+  source: { kind: "repo" },
   repo: "",
   deps: [],
   files: [],

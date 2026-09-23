@@ -28,6 +28,7 @@ import { useEngineModule } from "./use-engine-module";
 // this module is the one place that holds both.
 import { type SimulatorForm as SimulatorFormApi, useSimulatorForm } from "./use-simulator-form";
 import { useSyncedReset } from "@/hooks/use-synced-reset";
+import { hasDepsSource, repoDepsSourceLabel } from "@/lib/repo-deps-source";
 import type { FormState, PinnedTest } from "@/types/simulator";
 import type { RepoConnectOffer, RepoDepsView } from "@/types/repo";
 
@@ -343,7 +344,7 @@ function RepoTabPanel({
     <RepoDiscoveryGate view={view} connect={connect} onRetry={onRetry}>
       {/* Keyed: the search box is per-repo state and must not survive a new load. */}
       <RepoDepsTab
-        key={view.repo}
+        key={repoDepsSourceLabel(view)}
         view={view}
         pins={pins}
         atLimit={atLimit}
@@ -478,7 +479,7 @@ export function AddTestBox({
   const [repoDraft, setRepoDraft] = useState<RepoDraft | null>(null);
   // The ghost row (082 revisited) and where focus lands when the card opens.
   const { open, cardRef, openCard, closeCard } = usePinCardOpen(pins.length);
-  const repoAvailable = repoDeps.repo !== "";
+  const repoAvailable = hasDepsSource(repoDeps);
   const tab: AddTestTab = chosenTab ?? (repoAvailable ? "repo" : "manual");
 
   // Per-repo UI state dies with its repo (the panel's sync-during-render
@@ -486,7 +487,7 @@ export function AddTestBox({
   // pinning it would file A's descriptor under B's "detected because you
   // loaded this config from…" claim. The search box resets the same way,
   // through the keyed RepoDepsTab inside `RepoTabPanel`.
-  useSyncedReset(repoDeps.repo, () => {
+  useSyncedReset(repoDepsSourceLabel(repoDeps), () => {
     setRepoDraft(null);
   });
 

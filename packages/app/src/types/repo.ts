@@ -75,10 +75,30 @@ export interface RepoDepFile {
   error?: string;
 }
 
+/** Roadmap 095: where a `RepoDepsView`'s rows came from — a repository walk,
+ *  or the JSON debug log of a Renovate run. */
+export type RepoDepsSource =
+  | { kind: "repo" }
+  | {
+      kind: "log";
+      /** The log's repository slug; null when it had none (platform=local). */
+      slug: string | null;
+      /** The Renovate version that wrote the log. */
+      renovateVersion: string | null;
+      /** The Renovate version this debugger bundles, for the mismatch note. */
+      pinnedVersion: string | null;
+      /** The base branch the rows are from; null for the default branch. */
+      baseBranch: string | null;
+      /** Further base branches the log covered, which were not loaded. */
+      otherBaseBranches: string[];
+    };
+
 /** What the tab renders — computed by the shell, drawn by the feature. */
 export interface RepoDepsView {
   status: RepoDepsStatus;
-  /** `owner/repo` of the loaded repository. */
+  source: RepoDepsSource;
+  /** `owner/repo` of the loaded repository, or a log's slug ("" without one).
+   *  Shown through `repoDepsSourceLabel`, never directly. */
   repo: string;
   deps: RepoDep[];
   /** Roadmap 090: every matched file, in walk order — the Extract phase's

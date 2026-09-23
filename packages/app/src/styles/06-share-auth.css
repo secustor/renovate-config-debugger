@@ -300,15 +300,18 @@
 
 /* The standing reminder beside Run — present for as long as the suppression
    is, which is why it carries the opt-in too rather than being a dead end.
-   Roadmap 075: a warn `.pill`; what is left here is that it holds a control. */
-.untrusted-endpoint-chip {
+   Roadmap 075: a warn `.pill`; what is left here is that it holds a control.
+   Roadmap 095's loaded-log chip is the same shape, with "clear log". */
+.untrusted-endpoint-chip,
+.log-source-chip {
   align-items: center;
   display: inline-flex;
   gap: 0.4rem;
   padding: 0.1rem 0.5rem;
 }
 
-.untrusted-endpoint-allow {
+.untrusted-endpoint-allow,
+.log-source-clear {
   background: transparent;
   border: none;
   color: inherit;

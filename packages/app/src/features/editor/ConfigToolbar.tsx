@@ -39,6 +39,13 @@ interface Props {
   repoFormOpen: boolean;
   repoToggleRef: RefObject<HTMLButtonElement | null>;
   onToggleRepoForm: () => void;
+  /** Roadmap 095: the log-load overlay's trigger, and the loaded log's label
+   *  (null while none is loaded) with its clear action. */
+  logFormOpen: boolean;
+  logToggleRef: RefObject<HTMLButtonElement | null>;
+  onToggleLogForm: () => void;
+  logSource: string | null;
+  onClearLog: () => void;
   /** Roadmap 035: there is something to revert TO — see the button's comment. */
   canRevert: boolean;
   onRevert: () => void;
@@ -74,6 +81,11 @@ export function ConfigToolbar({
   repoFormOpen,
   repoToggleRef,
   onToggleRepoForm,
+  logFormOpen,
+  logToggleRef,
+  onToggleLogForm,
+  logSource,
+  onClearLog,
   canRevert,
   onRevert,
   onFormat,
@@ -132,6 +144,27 @@ export function ConfigToolbar({
         title="Fetch a Renovate config from a repository into this editor"
       >
         Load from repo…
+      </button>
+      {logSource === null ? null : (
+        <span
+          className="pill pill-muted log-source-chip"
+          title="The Dependencies, Tests and Pipeline tabs read this log"
+        >
+          deps from {logSource}
+          <button type="button" className="log-source-clear" onClick={onClearLog}>
+            clear log
+          </button>
+        </span>
+      )}
+      <button
+        ref={logToggleRef}
+        type="button"
+        className="btn-secondary"
+        aria-expanded={logFormOpen}
+        onClick={onToggleLogForm}
+        title="Use a Renovate debug log as the dependency source instead of a repository"
+      >
+        Load from log…
       </button>
       {/* Design review: a pasted config is one long line, and the app offered
           no way to make it readable. Two-space indentation, in place — the

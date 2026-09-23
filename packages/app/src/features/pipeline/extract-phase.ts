@@ -16,6 +16,7 @@
  */
 import { nf, plural } from "@/lib/format";
 import { discoveryCaveats } from "@/lib/discovery-caveats";
+import { isLogSource, logSourceNotes, repoDepsSourceLabel } from "@/lib/repo-deps-source";
 import type { RepoDep, RepoDepFile, RepoDepsView } from "@/types/repo";
 
 export type ExtractNodeId = "managers" | "files" | "deps";
@@ -102,7 +103,7 @@ export function scannedFiles(view: RepoDepsView): RepoDepFile[] {
 export function extractNodes(view: RepoDepsView): ExtractNode[] {
   const managers = matchedManagerNames(view);
   const scanned = scannedFiles(view);
-  const repo = view.repo === "" ? "the repository" : view.repo;
+  const source = repoDepsSourceLabel(view) || "the repository";
   return [
     {
       id: "managers",
@@ -123,7 +124,7 @@ export function extractNodes(view: RepoDepsView): ExtractNode[] {
       label: "Extract deps",
       meta: `+${nf.format(view.deps.length)}`,
       metaTone: "ok",
-      outcome: `${dependencies(view.deps.length)} from ${repo}`,
+      outcome: `${dependencies(view.deps.length)} from ${source}`,
     },
   ];
 }
@@ -137,6 +138,10 @@ export function extractNodes(view: RepoDepsView): ExtractNode[] {
  */
 function managersOutcome(view: RepoDepsView): string {
   const { builtIn } = matchedManagerCounts(view);
+  if (isLogSource(view)) {
+    // A log names only the managers that matched, so there is no "of N".
+    return `${plural(matchedManagerNames(view).length, "manager")} matched files in the Renovate run`;
+  }
   const base = `${nf.format(builtIn)} of ${plural(view.managersConsidered, "manager")} matched files`;
   if (view.customManagersConsidered === 0) {
     return base;
@@ -270,6 +275,15 @@ export function managerNotes(view: RepoDepsView): string[] {
   // — this card only sentence-cases them, so its counts and the footnotes'
   // are one arithmetic.
   notes.push(...discoveryCaveats(view).map((clause) => `${sentenceCase(clause)}.`));
+  if (isLogSource(view)) {
+    notes.push(...logSourceNotes(view).map((clause) => `${sentenceCase(clause)}.`));
+    notes.push(
+      "Taken from the Renovate log you loaded: Renovate applied your config’s enabledManagers " +
+        "and ignorePaths itself, files without dependencies are not in a log, and config " +
+        "edits don’t re-extract.",
+    );
+    return notes;
+  }
   notes.push(
     "Renovate’s default ignorePaths (node_modules, bower_components) were applied, and so " +
       "were your config’s customManagers; enabledManagers and ignorePaths from your merged " +
