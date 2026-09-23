@@ -557,7 +557,13 @@ export function App() {
   const { view: repoWalkView, ensure: ensureRepoWalk } = useRepoDeps(loadedRepo, customManagers);
   // Roadmap 095: a loaded Renovate log replaces the walk as the dependency
   // source until it is cleared or a repository is loaded.
-  const logDeps = useLogDeps(loadedRepo);
+  const logDeps = useLogDeps({
+    loadedRepo,
+    overlayOpen: repoLoad.repoFormOpen,
+    closeOverlay: repoLoad.closeRepoForm,
+    loadRepo: repoLoad.onLoadRepo,
+  });
+  const { prepare: prepareLoadOverlay } = logDeps;
   const logView = logDeps.view;
   const repoDepsView = logView ?? repoWalkView;
   const ensureRepoDeps = useCallback(() => {
@@ -607,9 +613,12 @@ export function App() {
     () => ({
       suggestion: repoSuggestion,
       onConnect: connectSuggestedRepo,
-      onOpenLoad: openRepoForm,
+      onOpenLoad: (returnFocus, initial) => {
+        prepareLoadOverlay(initial);
+        openRepoForm(returnFocus);
+      },
     }),
-    [repoSuggestion, connectSuggestedRepo, openRepoForm],
+    [repoSuggestion, connectSuggestedRepo, openRepoForm, prepareLoadOverlay],
   );
   // Roadmap 089: the Dependencies tab's two row actions, and the simulator
   // request slot they share with the share link — one cluster, in its own hook.

@@ -18,7 +18,7 @@ import { RunButton } from "./RunButton";
  * a row under the card. The strip now carries everything about the document —
  * which file it is, where to fetch one from, how to reformat it, and how to run
  * it — so the card has one chrome row instead of a title bar naming the file
- * and a separate toolbar acting on it. "Load from repo…" came up from the title
+ * and a separate toolbar acting on it. "Load repo or log…" came up from the title
  * bar with the same move (its form is now an overlay over the editor, so it no
  * longer has a row to open into).
  *
@@ -39,11 +39,8 @@ interface Props {
   repoFormOpen: boolean;
   repoToggleRef: RefObject<HTMLButtonElement | null>;
   onToggleRepoForm: () => void;
-  /** Roadmap 095: the log-load overlay's trigger, and the loaded log's label
-   *  (null while none is loaded) with its clear action. */
-  logFormOpen: boolean;
-  logToggleRef: RefObject<HTMLButtonElement | null>;
-  onToggleLogForm: () => void;
+  /** Roadmap 095: the loaded log's label (null while none is loaded) and its
+   *  clear action — the one way back to the repository's dependencies. */
   logSource: string | null;
   onClearLog: () => void;
   /** Roadmap 035: there is something to revert TO — see the button's comment. */
@@ -81,9 +78,6 @@ export function ConfigToolbar({
   repoFormOpen,
   repoToggleRef,
   onToggleRepoForm,
-  logFormOpen,
-  logToggleRef,
-  onToggleLogForm,
   logSource,
   onClearLog,
   canRevert,
@@ -141,9 +135,9 @@ export function ConfigToolbar({
         className="btn-secondary"
         aria-expanded={repoFormOpen}
         onClick={onToggleRepoForm}
-        title="Fetch a Renovate config from a repository into this editor"
+        title="Fetch a config from a repository, or read dependencies from a Renovate log"
       >
-        Load from repo…
+        Load repo or log…
       </button>
       {logSource === null ? null : (
         <span
@@ -156,16 +150,6 @@ export function ConfigToolbar({
           </button>
         </span>
       )}
-      <button
-        ref={logToggleRef}
-        type="button"
-        className="btn-secondary"
-        aria-expanded={logFormOpen}
-        onClick={onToggleLogForm}
-        title="Use a Renovate debug log as the dependency source instead of a repository"
-      >
-        Load from log…
-      </button>
       {/* Design review: a pasted config is one long line, and the app offered
           no way to make it readable. Two-space indentation, in place — the
           editor's own text, not a copy shown somewhere else. Ordered BEFORE

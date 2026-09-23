@@ -10,6 +10,8 @@ import {
   isString,
   isStringArray,
 } from "@renovate-config-debugger/engine/is";
+import { plural } from "@/lib/format";
+import type { RepoDepUpdate } from "@/types/repo";
 
 type LogRecord = Record<string, unknown>;
 
@@ -26,10 +28,17 @@ export interface RenovateLog {
   otherRepositories: string[];
   /** The managers the extraction stats name — only those that matched files. */
   managers: string[];
-  packageFiles: ExtractedPackageFile[];
+  packageFiles: LogPackageFile[];
 }
 
-export type RenovateLogResult = { ok: true; log: RenovateLog } | { ok: false; error: string };
+/** An extracted file plus what lookup proposed: `updates[i]` belongs to `deps[i]`. */
+export interface LogPackageFile extends ExtractedPackageFile {
+  updates: RepoDepUpdate[][];
+}
+
+export type RenovateLogResult =
+  | { ok: true; log: RenovateLog }
+  | { ok: false; error: string; /** JSON lines read — 0 when nothing was JSON. */ lines: number };
 
 const PACKAGE_FILES_MSG = "packageFiles with updates";
 
@@ -47,17 +56,21 @@ function parseRecord(line: string): LogRecord | null {
   }
 }
 
-/** A JSON array of log objects, else NDJSON with non-JSON lines skipped. */
+/** A JSON array of log objects, one (pretty-printed) object, else NDJSON with
+ *  non-JSON lines skipped. */
 function readRecords(text: string): LogRecord[] {
   const trimmed = text.trim();
-  if (trimmed.startsWith("[")) {
+  if (trimmed.startsWith("[") || trimmed.startsWith("{")) {
     try {
       const value: unknown = JSON.parse(trimmed);
       if (Array.isArray(value)) {
         return value.filter(isPlainObject);
       }
+      if (isPlainObject(value)) {
+        return [value];
+      }
     } catch {
-      // Not one array — fall through to line-by-line.
+      // Not one value — fall through to line-by-line.
     }
   }
   const records: LogRecord[] = [];
@@ -75,7 +88,7 @@ function stringField(record: LogRecord, key: string): string | null {
   return isString(value) ? value : null;
 }
 
-/** Only the fields the dependency rows read — lookup results are dropped. */
+/** Only the fields the dependency rows read; `updates` are read by `toUpdates`. */
 function toDependency(raw: LogRecord): PackageDependency {
   const dep: PackageDependency = {};
   for (const key of [
@@ -102,8 +115,21 @@ function toDependency(raw: LogRecord): PackageDependency {
   return dep;
 }
 
-function packageFilesOf(config: LogRecord): ExtractedPackageFile[] {
-  const files: ExtractedPackageFile[] = [];
+/** What lookup proposed for one dep; entries without an `updateType` are dropped. */
+function toUpdates(raw: LogRecord): RepoDepUpdate[] {
+  const updates = Array.isArray(raw["updates"]) ? raw["updates"].filter(isPlainObject) : [];
+  return updates.flatMap((update) => {
+    const updateType = update["updateType"];
+    if (!isNonEmptyString(updateType)) {
+      return [];
+    }
+    const newValue = update["newValue"];
+    return [{ updateType, newValue: isString(newValue) ? newValue : "" }];
+  });
+}
+
+function packageFilesOf(config: LogRecord): LogPackageFile[] {
+  const files: LogPackageFile[] = [];
   for (const [manager, entries] of Object.entries(config)) {
     if (!Array.isArray(entries)) {
       continue;
@@ -113,10 +139,11 @@ function packageFilesOf(config: LogRecord): ExtractedPackageFile[] {
         continue;
       }
       const deps = Array.isArray(entry["deps"]) ? entry["deps"].filter(isPlainObject) : [];
-      const file: ExtractedPackageFile = {
+      const file: LogPackageFile = {
         manager,
         fileName: entry["packageFile"],
         deps: deps.map(toDependency),
+        updates: deps.map(toUpdates),
       };
       if (isNonEmptyString(entry["packageFileVersion"])) {
         file.packageFileVersion = entry["packageFileVersion"];
@@ -177,7 +204,8 @@ export function parseRenovateLog(text: string): RenovateLogResult {
   if (records.length === 0) {
     return {
       ok: false,
-      error: "No JSON log lines found. Run Renovate with LOG_FORMAT=json and LOG_LEVEL=debug.",
+      error: "Couldn’t read this as JSON — expected one JSON object per line (LOG_FORMAT=json).",
+      lines: 0,
     };
   }
   const lines = records.filter((r) => r["msg"] === PACKAGE_FILES_MSG && isPlainObject(r["config"]));
@@ -190,8 +218,9 @@ export function parseRenovateLog(text: string): RenovateLogResult {
     return {
       ok: false,
       error:
-        "This log has no “packageFiles with updates” line, which Renovate writes at debug level. " +
-        "Run Renovate with LOG_LEVEL=debug and LOG_FORMAT=json.",
+        `Read ${plural(records.length, "log line")}, none of them a “packageFiles with updates” ` +
+        "entry. Renovate only logs it at debug level.",
+      lines: records.length,
     };
   }
   return {

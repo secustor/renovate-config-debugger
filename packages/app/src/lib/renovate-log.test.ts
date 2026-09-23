@@ -101,17 +101,64 @@ describe("parseRenovateLog", () => {
     expect(log.otherRepositories).toEqual(["acme/two"]);
   });
 
-  it("asks for a debug-level log when there is no packageFiles line", () => {
+  it("keeps the updates lookup proposed, aligned with the deps", () => {
+    const npm = parsed(FIXTURE).packageFiles.find((file) => file.manager === "npm");
+    const at = npm?.deps.findIndex((dep) => dep.depName === "lodash") ?? -1;
+    expect(npm?.updates).toHaveLength(npm?.deps.length ?? -1);
+    expect(npm?.updates[at]).toEqual([{ updateType: "minor", newValue: "4.18.1" }]);
+  });
+
+  it("drops update entries without an updateType", () => {
+    const log = parsed(
+      line({
+        msg: "packageFiles with updates",
+        config: {
+          npm: [
+            {
+              packageFile: "package.json",
+              deps: [
+                {
+                  depName: "a",
+                  updates: [{ newValue: "2" }, { updateType: "lockFileMaintenance" }],
+                },
+              ],
+            },
+          ],
+        },
+      }),
+    );
+    expect(log.packageFiles[0]?.updates).toEqual([
+      [{ updateType: "lockFileMaintenance", newValue: "" }],
+    ]);
+  });
+
+  it("reads a lone, pretty-printed packageFiles entry", () => {
+    const entry = JSON.parse(packageFilesLine("", "main", "a")) as unknown;
+    const log = parsed(JSON.stringify(entry, null, 2));
+    expect(log.baseBranch).toBe("main");
+    expect(log.packageFiles[0]?.deps[0]?.depName).toBe("a");
+  });
+
+  it("counts the lines it read when none is a packageFiles entry", () => {
     const info = FIXTURE.split("\n")
       .filter((text) => !text.includes("packageFiles with updates"))
       .join("\n");
-    const result = parseRenovateLog(info);
-    expect(result.ok).toBe(false);
-    expect(result.ok ? "" : result.error).toContain("LOG_LEVEL=debug");
+    expect(parseRenovateLog(info)).toEqual({
+      ok: false,
+      error:
+        "Read 6 log lines, none of them a “packageFiles with updates” entry. Renovate only logs it at debug level.",
+      lines: 6,
+    });
+    expect(parseRenovateLog(line({ msg: "Renovate started" }))).toMatchObject({
+      error: expect.stringMatching(/^Read 1 log line, none/),
+    });
   });
 
   it("says so when nothing in the text is JSON", () => {
-    const result = parseRenovateLog("INFO: Renovate started\nDEBUG: nothing here");
-    expect(result.ok ? "" : result.error).toContain("No JSON log lines");
+    expect(parseRenovateLog("INFO: Renovate started\nDEBUG: nothing here")).toEqual({
+      ok: false,
+      error: "Couldn’t read this as JSON — expected one JSON object per line (LOG_FORMAT=json).",
+      lines: 0,
+    });
   });
 });

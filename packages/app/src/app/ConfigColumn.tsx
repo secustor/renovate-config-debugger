@@ -7,8 +7,7 @@ import { BuildStamp, BuildVerifyLine } from "@/components/BuildInfo";
 import { type AuthState, GithubAuthHint } from "@/components/GithubAuthHint";
 import { LandingIntro, LandingLaunch, LandingSteps } from "@/features/editor/Landing";
 import { NoticeBar } from "@/features/editor/NoticeBar";
-import { LogLoadOverlay } from "@/features/editor/LogLoadOverlay";
-import { RepoLoadOverlay } from "@/features/editor/RepoLoadOverlay";
+import { LoadOverlay } from "@/features/editor/LoadOverlay";
 import type { LogDeps } from "@/app/use-log-deps";
 import type { RepoLoad } from "@/app/use-repo-load";
 import { StageRailPreview } from "@/components/StageRail";
@@ -18,7 +17,6 @@ import type { RepoPickerView } from "@/types/repo";
 /** Roadmap 075: what Run refuses while the repo-load overlay is up — the
  *  design's disabled-primary rule, spelled once for both Run buttons. */
 const RUN_BLOCKED_BY_REPO_FORM = "Finish or cancel Load from repo first";
-const RUN_BLOCKED_BY_LOG_FORM = "Finish or cancel Load from log first";
 
 interface ConfigColumnProps {
   /** Roadmap 068: the column element itself. App asks it one question — was the
@@ -38,14 +36,14 @@ interface ConfigColumnProps {
   /**
    * Roadmap 086's treatment, applied to the config half. Nine of this column's
    * props were `useRepoLoad`'s return object, unpacked in App, re-listed here,
-   * re-destructured below and re-assembled for `RepoLoadOverlay` — the same
+   * re-destructured below and re-assembled for `LoadOverlay` — the same
    * accretion the run-view context fixed for the results half. Handed over
    * whole instead: the hook owns the cluster, this column only decides where
    * it appears. Nothing is memoised on these props, so there is no render-count
    * contract to break.
    */
   repoLoad: RepoLoad;
-  /** Roadmap 095: the load-from-log cluster, and the loaded log's label. */
+  /** Roadmap 095: the overlay's log tab, and the loaded log's label. */
   logDeps: LogDeps;
   logSource: string | null;
   /** NOT part of `repoLoad`: App owns the reference field, because the
@@ -159,40 +157,19 @@ export function ConfigColumn({
   notice,
   onDismissNotice,
 }: ConfigColumnProps) {
-  // Roadmap 075: the repo-load overlay covers the document Run acts on, so Run
+  // Roadmap 075: the load overlay covers the document Run acts on, so Run
   // says why it is refusing rather than acting on a config the user is halfway
   // through replacing.
-  let runBlockedReason: string | null = null;
-  if (repoLoad.repoFormOpen) {
-    runBlockedReason = RUN_BLOCKED_BY_REPO_FORM;
-  } else if (logDeps.formOpen) {
-    runBlockedReason = RUN_BLOCKED_BY_LOG_FORM;
-  }
-  // One overlay at a time: opening either closes the other.
-  const toggleRepoForm = () => {
-    if (logDeps.formOpen) {
-      logDeps.closeForm();
-    }
-    repoLoad.toggleRepoForm();
-  };
-  const toggleLogForm = () => {
-    if (repoLoad.repoFormOpen) {
-      repoLoad.closeRepoForm();
-    }
-    logDeps.toggleForm();
-  };
+  const runBlockedReason = repoLoad.repoFormOpen ? RUN_BLOCKED_BY_REPO_FORM : null;
   // Roadmap 075 (v2, iteration 2): the editor card's title bar IS the config
-  // toolbar (file name, Load from repo…, Format/Revert, Run).
+  // toolbar (file name, Load repo or log…, Format/Revert, Run).
   const toolbar = (
     <ConfigToolbar
       fileName={fileName}
       onFileNameChange={onFileNameChange}
       repoFormOpen={repoLoad.repoFormOpen}
       repoToggleRef={repoLoad.repoToggleRef}
-      onToggleRepoForm={toggleRepoForm}
-      logFormOpen={logDeps.formOpen}
-      logToggleRef={logDeps.toggleRef}
-      onToggleLogForm={toggleLogForm}
+      onToggleRepoForm={repoLoad.toggleRepoForm}
       logSource={logSource}
       onClearLog={logDeps.clear}
       canRevert={canRevert}
@@ -213,34 +190,39 @@ export function ConfigColumn({
       blockedReason={runBlockedReason}
     />
   );
-  // Roadmap 075: the repo-load form is an overlay over the editor — a panel that
-  // covers the document it is about to replace, rather than a chrome row that
-  // pushes it down.
-  const repoOverlay = repoLoad.repoFormOpen ? (
-    <RepoLoadOverlay
-      repo={repo}
-      onRepoChange={onRepoChange}
-      gitRef={repoLoad.repoRef}
-      onRefChange={repoLoad.setRepoRef}
-      loading={repoLoad.repoLoading}
-      onSubmit={() => void repoLoad.onLoadRepo()}
-      onClose={repoLoad.closeRepoForm}
-      inheritAuto={inheritAuto}
-      onInheritAutoChange={onInheritAutoChange}
-      inheritRepo={inheritRepo}
-      onInheritRepoChange={onInheritRepoChange}
-      inheritFile={inheritFile}
-      onInheritFileChange={onInheritFileChange}
-      picker={repoPicker}
-      pickerUser={authUser}
-    />
-  ) : null;
-  const logOverlay = logDeps.formOpen ? (
-    <LogLoadOverlay
-      loading={logDeps.loading}
-      error={logDeps.error}
-      onLoad={(text) => void logDeps.load(text)}
-      onClose={logDeps.closeForm}
+  // Roadmap 075/095: one overlay over the editor, a Repository and a Renovate
+  // log tab — it covers the document a load replaces rather than pushing it down.
+  const overlay = repoLoad.repoFormOpen ? (
+    <LoadOverlay
+      tab={logDeps.tab}
+      onTabChange={logDeps.setTab}
+      repo={{
+        repo,
+        onRepoChange,
+        gitRef: repoLoad.repoRef,
+        onRefChange: repoLoad.setRepoRef,
+        loading: repoLoad.repoLoading,
+        onSubmit: () => void repoLoad.onLoadRepo(),
+        onClose: repoLoad.closeRepoForm,
+        inheritAuto,
+        onInheritAutoChange,
+        inheritRepo,
+        onInheritRepoChange,
+        inheritFile,
+        onInheritFileChange,
+        picker: repoPicker,
+        pickerUser: authUser,
+      }}
+      log={{
+        draft: logDeps.draft,
+        onDraftChange: logDeps.setDraft,
+        preview: logDeps.preview,
+        alsoLoadConfig: logDeps.alsoLoadConfig,
+        onAlsoLoadConfigChange: logDeps.setAlsoLoadConfig,
+        loading: logDeps.loading,
+        onLoad: () => void logDeps.load(),
+        onClose: repoLoad.closeRepoForm,
+      }}
     />
   ) : null;
   const editor = (
@@ -254,7 +236,7 @@ export function ConfigColumn({
         onRun={onRun}
         presetHover={presetHover}
         titleBar={toolbar}
-        overlay={repoOverlay ?? logOverlay}
+        overlay={overlay}
       />
     </div>
   );

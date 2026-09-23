@@ -8,7 +8,7 @@ import type { ExtractedPackageFile, PackageDependency } from "@renovate-config-d
 import { isNonEmptyString } from "@renovate-config-debugger/engine/is";
 import { joinValues } from "./form";
 import type { FormState } from "@/types/simulator";
-import type { RepoDep, RepoDepsView } from "@/types/repo";
+import type { RepoDep, RepoDepsView, RepoDepUpdate } from "@/types/repo";
 
 /** The idle view the tab renders before any discovery has run. */
 export const EMPTY_REPO_DEPS: RepoDepsView = {
@@ -73,8 +73,12 @@ export function depToFill(file: ExtractedPackageFile, dep: PackageDependency): P
  *  extraction itself marked `skipReason` (file:/workspace: links, unpinned
  *  `*` ranges, engines Renovate refuses) — production Renovate never
  *  generates an update for those, so offering them as pinnable tests would
- *  be an unearned claim. In file order. */
-export function repoDepsOfFile(file: ExtractedPackageFile): RepoDep[] {
+ *  be an unearned claim. In file order. `updatesOf` attaches a log's
+ *  proposed updates by dep index (roadmap 095). */
+export function repoDepsOfFile(
+  file: ExtractedPackageFile,
+  updatesOf?: (index: number) => RepoDepUpdate[] | undefined,
+): RepoDep[] {
   const rows: RepoDep[] = [];
   for (const [index, dep] of file.deps.entries()) {
     const name = dep.depName ?? dep.packageName;
@@ -84,7 +88,9 @@ export function repoDepsOfFile(file: ExtractedPackageFile): RepoDep[] {
     const value = isNonEmptyString(dep.currentValue)
       ? dep.currentValue
       : (dep.currentVersion ?? "");
+    const updates = updatesOf?.(index);
     rows.push({
+      ...(updates === undefined ? {} : { updates }),
       key: `${file.fileName}:${index}:${name}`,
       depName: name,
       value,
@@ -98,11 +104,14 @@ export function repoDepsOfFile(file: ExtractedPackageFile): RepoDep[] {
 }
 
 /** A picked row on its way to being a pin: the dep, the chosen update type,
- *  and the (optional) next version the reader types. */
+ *  and the (optional) next version the reader types. `type` is any Renovate
+ *  updateType (FormState's), since a log proposes digest, pin, bump, …. */
 export interface RepoDraft {
   dep: RepoDep;
-  type: "patch" | "minor" | "major";
+  type: string;
   newValue: string;
+  /** The type and value came from the log's own update, not a quick-pin guess. */
+  fromLog?: boolean;
 }
 
 /** What the draft's Pin writes: the extracted descriptor plus the reader's

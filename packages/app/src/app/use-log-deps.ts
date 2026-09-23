@@ -1,30 +1,51 @@
 /**
- * Roadmap 095 — the Renovate log as a second dependency source: the overlay's
- * open state, its inline error, and the view a parsed log produced. The raw
- * text is parsed and dropped; only the view is held, and nothing here reaches
- * a share link.
+ * Roadmap 095 — the Renovate log as a second dependency source: the load
+ * overlay's tab and log draft, the draft parsed as it is typed, and the view a
+ * confirmed log produced. The draft dies with the overlay; only the view is
+ * held, and nothing here reaches a share link.
  */
-import { type RefObject, useRef, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { logDepsView } from "@/features/simulator/log-deps";
-import { ESCAPE_PRIORITY } from "@/lib/escape-stack";
-import { useEscapeLayer } from "@/hooks/use-escape-layer";
 import { useSyncedReset } from "@/hooks/use-synced-reset";
 import { parseRenovateLog } from "@/lib/renovate-log";
 import { getRenovateVersion } from "@/platform/run";
-import type { LoadedRepo, RepoDepsView } from "@/types/repo";
+import type {
+  LoadedRepo,
+  LoadOverlayInit,
+  LoadTab,
+  LogDraft,
+  LogPreview,
+  RepoDepsView,
+} from "@/types/repo";
 
 export interface LogDeps {
-  /** The log-derived view, or null while no log is loaded. */
+  /** The loaded log's view, or null while no log is loaded. */
   view: RepoDepsView | null;
-  formOpen: boolean;
-  toggleRef: RefObject<HTMLButtonElement | null>;
-  toggleForm: () => void;
-  closeForm: () => void;
-  error: string | null;
+  tab: LoadTab;
+  setTab: (tab: LoadTab) => void;
+  draft: LogDraft;
+  setDraft: (draft: LogDraft) => void;
+  /** null while the draft is empty. */
+  preview: LogPreview | null;
+  alsoLoadConfig: boolean;
+  setAlsoLoadConfig: (value: boolean) => void;
   loading: boolean;
-  load: (text: string) => Promise<void>;
+  /** Sets the tab (and draft) the overlay opens on; identity-stable. */
+  prepare: (initial?: LoadOverlayInit) => void;
+  load: () => Promise<void>;
   clear: () => void;
 }
+
+interface LogDepsHost {
+  loadedRepo: LoadedRepo | null;
+  /** The load overlay's open flag — `useRepoLoad` owns it. */
+  overlayOpen: boolean;
+  closeOverlay: () => void;
+  /** Loads a repository's config, as the Repository tab does. */
+  loadRepo: (slug: string) => Promise<void>;
+}
+
+const EMPTY_DRAFT: LogDraft = { text: "", name: null };
 
 async function pinnedRenovateVersion(): Promise<string | null> {
   try {
@@ -34,58 +55,102 @@ async function pinnedRenovateVersion(): Promise<string | null> {
   }
 }
 
-export function useLogDeps(loadedRepo: LoadedRepo | null): LogDeps {
+export function useLogDeps({
+  loadedRepo,
+  overlayOpen,
+  closeOverlay,
+  loadRepo,
+}: LogDepsHost): LogDeps {
   const [view, setView] = useState<RepoDepsView | null>(null);
-  const [formOpen, setFormOpen] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [tab, setTab] = useState<LoadTab>("repo");
+  const [draft, setDraft] = useState<LogDraft>(EMPTY_DRAFT);
+  const [alsoLoadConfig, setAlsoLoadConfig] = useState(false);
   const [loading, setLoading] = useState(false);
-  const toggleRef = useRef<HTMLButtonElement>(null);
+  // The slug the "also load its config" checkbox is loading: that load keeps
+  // the log as the dependency source, any other repository load replaces it.
+  const [keepFor, setKeepFor] = useState<string | null>(null);
 
-  // Loading a repository replaces the log as the dependency source.
   useSyncedReset(loadedRepo, () => {
-    if (loadedRepo !== null) {
-      setView(null);
+    if (loadedRepo === null) {
+      return;
+    }
+    if (loadedRepo.repo === keepFor) {
+      setKeepFor(null);
+      return;
+    }
+    setView(null);
+  });
+
+  // The pasted text lives only as long as the overlay. Opening it also drops a
+  // "keep" a failed checkbox load left, so a later Repository-tab load replaces.
+  useSyncedReset(overlayOpen, () => {
+    if (overlayOpen) {
+      setKeepFor(null);
+    } else {
+      setTab("repo");
+      setDraft(EMPTY_DRAFT);
+      setAlsoLoadConfig(false);
     }
   });
 
-  function closeForm() {
-    setFormOpen(false);
-    setError(null);
-    toggleRef.current?.focus();
-  }
-
-  function toggleForm() {
-    if (formOpen) {
-      closeForm();
-    } else {
-      setFormOpen(true);
+  const parsed = useMemo(
+    () => (draft.text.trim() === "" ? null : parseRenovateLog(draft.text)),
+    [draft.text],
+  );
+  const preview = useMemo<LogPreview | null>(() => {
+    if (parsed === null) {
+      return null;
     }
-  }
+    return parsed.ok
+      ? { ok: true, view: logDepsView(parsed.log, null) }
+      : { ok: false, error: parsed.error };
+  }, [parsed]);
 
-  useEscapeLayer(formOpen, closeForm, ESCAPE_PRIORITY.popover);
+  const prepare = useCallback((initial?: LoadOverlayInit) => {
+    if (initial !== undefined) {
+      setTab(initial.tab);
+      setDraft({ text: initial.text, name: null });
+    }
+  }, []);
 
-  async function load(text: string) {
-    const parsed = parseRenovateLog(text);
-    if (!parsed.ok) {
-      setError(parsed.error);
+  async function load() {
+    if (parsed?.ok !== true) {
       return;
     }
     setLoading(true);
     const pinned = await pinnedRenovateVersion();
-    setLoading(false);
     setView(logDepsView(parsed.log, pinned));
-    closeForm();
+    const slug = alsoLoadConfig ? parsed.log.slug : null;
+    if (slug === null) {
+      setLoading(false);
+      closeOverlay();
+      return;
+    }
+    // The repository load closes the overlay on success, like the Repository
+    // tab's; a failed one leaves it open.
+    setKeepFor(slug);
+    try {
+      await loadRepo(slug);
+    } finally {
+      setLoading(false);
+    }
   }
 
   return {
     view,
-    formOpen,
-    toggleRef,
-    toggleForm,
-    closeForm,
-    error,
+    tab,
+    setTab,
+    draft,
+    setDraft,
+    preview,
+    alsoLoadConfig,
+    setAlsoLoadConfig,
     loading,
+    prepare,
     load,
-    clear: () => setView(null),
+    clear: () => {
+      setView(null);
+      setKeepFor(null);
+    },
   };
 }

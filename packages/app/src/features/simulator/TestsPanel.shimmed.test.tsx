@@ -15,7 +15,7 @@ import { fireEvent, render, waitFor, within } from "@testing-library/react";
 import { beforeAll, expect, it, vi } from "vitest";
 import type { SimRequest } from "@/hooks/use-share-link";
 import { stubMatchMedia, stubResizeObserver, stubScrollApis } from "@tools/test/jsdom-stubs";
-import { readyView } from "@tools/test/repo-deps";
+import { logView, readyView } from "@tools/test/repo-deps";
 import { EMPTY_REPO_DEPS } from "./repo-deps";
 import { TestsPanel } from "./TestsPanel";
 import type { FormState, PinnedTest } from "@/types/simulator";
@@ -547,4 +547,68 @@ it("offers the load-a-repository door when nothing suggests a repo", async () =>
   expect(view.queryByRole("button", { name: /Reload/ })).toBeNull();
   fireEvent.click(view.getByRole("button", { name: "load a repository…" }));
   expect(onOpenLoad).toHaveBeenCalledTimes(1);
+});
+
+it("hands a pasted Renovate log to the load overlay's log tab (095)", async () => {
+  const result = await run();
+  const onOpenLoad = vi.fn();
+  const view = render(
+    <Harness
+      result={result}
+      repoConnect={{ suggestion: null, onConnect: () => undefined, onOpenLoad }}
+    />,
+  );
+  fireEvent.click(view.getByRole("tab", { name: "Paste JSON" }));
+  expect(view.container.textContent).toContain("Paste either of these — the format is detected");
+  const log = [
+    JSON.stringify({ msg: "Renovate started", renovateVersion: "44.97.5" }),
+    JSON.stringify({
+      msg: "packageFiles with updates",
+      config: { npm: [{ packageFile: "package.json", deps: [{ depName: "react" }] }] },
+    }),
+  ].join("\n");
+  fireEvent.change(view.getByLabelText("Dependency descriptor JSON"), { target: { value: log } });
+  const parse = view.getByRole("button", { name: "Parse & fill" });
+  fireEvent.click(parse);
+
+  expect(onOpenLoad).toHaveBeenCalledWith(parse, { tab: "log", text: log });
+  expect(view.container.querySelector(".pin-import-note")).toBeNull();
+
+  // A log without the entry says so instead of a descriptor error.
+  fireEvent.change(view.getByLabelText("Dependency descriptor JSON"), {
+    target: { value: `${JSON.stringify({ msg: "a" })}\n${JSON.stringify({ msg: "b" })}` },
+  });
+  fireEvent.click(parse);
+  expect(view.container.querySelector(".sim-empty-guard")?.textContent).toContain(
+    "Read 2 log lines, none of them",
+  );
+});
+
+it("prefills a log-sourced draft from the update Renovate proposed (095)", async () => {
+  const result = await run();
+  const lodash = {
+    ...repoDep("package.json", "lodash", "4.17.15"),
+    updates: [
+      { updateType: "minor", newValue: "4.18.1" },
+      { updateType: "digest", newValue: "" },
+    ],
+  };
+  const view = render(<Harness result={result} repoDeps={logView([lodash])} />);
+  fireEvent.click(view.getByRole("tab", { name: "From repository" }));
+  const row = view.getByText("lodash").closest("li");
+  if (!row) {
+    throw new Error("the lodash row is missing");
+  }
+  // The log's own updates replace the patch/minor/major guesses.
+  expect(within(row).queryByRole("button", { name: "Draft a patch update of lodash" })).toBeNull();
+  expect(within(row).getByRole("button", { name: "Draft a digest update of lodash" })).toBeTruthy();
+  fireEvent.click(
+    within(row).getByRole("button", { name: "Draft a minor update of lodash to 4.18.1" }),
+  );
+  expect((view.getByLabelText("newValue", { exact: true }) as HTMLInputElement).value).toBe(
+    "4.18.1",
+  );
+  expect(view.container.textContent).toContain("pre-filled from the Renovate log");
+  fireEvent.click(view.getByRole("button", { name: "Pin ⏎" }));
+  await waitFor(() => expect(view.container.textContent).toContain("pinned · minor"));
 });

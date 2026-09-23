@@ -106,7 +106,7 @@ test("the repo-load panel keeps Load on its inputs' row inside the editor card",
   await runAndAwaitResult(page);
   await expect(page.locator(".app-split.has-results")).toBeVisible();
 
-  await page.getByRole("button", { name: "Load from repo…" }).click();
+  await page.getByRole("button", { name: "Load repo or log…" }).click();
   const panel = page.locator(".repo-panel");
   await expect(panel).toBeVisible();
 
@@ -163,7 +163,7 @@ test("the repo-load panel keeps Load on its inputs' row inside the editor card",
 test("the repo-load form is collapsed by default and leaves no row behind", async ({ page }) => {
   await gotoAppAtDefaultConfig(page);
 
-  const toggle = page.getByRole("button", { name: "Load from repo…" });
+  const toggle = page.getByRole("button", { name: "Load repo or log…" });
   await expect(toggle).toBeVisible();
   await expect(toggle).toHaveAttribute("aria-expanded", "false");
   await expect(page.locator(".repo-panel")).toHaveCount(0);
@@ -274,7 +274,7 @@ test("the title bar carries only the document on the landing, the actions in the
   const format = bar.getByRole("button", { name: "Format", exact: true });
   const share = page.locator(".app-header").getByRole("button", { name: "Share" });
 
-  await expect(bar.getByRole("button", { name: "Load from repo…" })).toBeVisible();
+  await expect(bar.getByRole("button", { name: "Load repo or log…" })).toBeVisible();
   // The document's own copy is landing-safe — it acts on the text, not a run.
   await expect(bar.getByRole("button", { name: "Copy renovate.json" })).toBeVisible();
   await expect(format).toHaveCount(0);

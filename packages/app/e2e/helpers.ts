@@ -184,7 +184,7 @@ export async function openLayerStage(page: Page, stage: "global" | "inherit"): P
 
 /** The repo-load form, opened from the editor card's title bar. */
 export async function openRepoForm(page: Page): Promise<void> {
-  await page.getByRole("button", { name: "Load from repo…" }).click();
+  await page.getByRole("button", { name: "Load repo or log…" }).click();
   await expect(page.locator(".repo-panel")).toBeVisible();
 }
 

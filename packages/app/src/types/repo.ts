@@ -51,6 +51,15 @@ export interface RepoDep {
   packageFile: string;
   /** What quick-pin and "refine in Manual" write into the form. */
   fill: Partial<FormState>;
+  /** Roadmap 095: the updates a Renovate log proposed; absent for a walk. */
+  updates?: RepoDepUpdate[];
+}
+
+/** One update Renovate's lookup proposed, as a log records it. */
+export interface RepoDepUpdate {
+  updateType: string;
+  /** "" when the log gave none (lockFileMaintenance). */
+  newValue: string;
 }
 
 /**
@@ -73,6 +82,8 @@ export interface RepoDepFile {
   outcome: RepoDepFileOutcome;
   /** Why extraction failed, when `outcome` is `error`; absent otherwise. */
   error?: string;
+  /** Roadmap 095: updates the log proposed for this file; absent for a walk. */
+  updateCount?: number;
 }
 
 /** Roadmap 095: where a `RepoDepsView`'s rows came from — a repository walk,
@@ -124,15 +135,34 @@ export interface RepoDepsView {
  * from — `suggestion` — and `onConnect` grants this session repository access
  * (the load path's `LoadedRepo` record, so discovery can run) WITHOUT
  * touching the config the link installed. `onOpenLoad` opens the editor's
- * load-from-repo overlay for any other repository.
+ * load overlay for any other repository, or for a pasted Renovate log.
  */
 export interface RepoConnectOffer {
   suggestion: string | null;
   onConnect: () => void;
-  /** Opens the editor's load-from-repo overlay; the panel passes its own
-   *  button so a dismissal returns focus HERE, not to the editor column. */
-  onOpenLoad: (returnFocus?: HTMLElement) => void;
+  /** Opens the editor's load overlay; the panel passes its own button so a
+   *  dismissal returns focus HERE, not to the editor column. `initial` opens
+   *  it on the Renovate log tab with that text (roadmap 095). */
+  onOpenLoad: (returnFocus?: HTMLElement, initial?: LoadOverlayInit) => void;
 }
+
+/** Roadmap 095: the load overlay's two tabs. */
+export type LoadTab = "repo" | "log";
+
+/** Opens the overlay on the log tab with a pasted log. */
+export interface LoadOverlayInit {
+  tab: "log";
+  text: string;
+}
+
+/** The log on the overlay's log tab; `name` is null for a paste. */
+export interface LogDraft {
+  text: string;
+  name: string | null;
+}
+
+/** That draft parsed: the rows it would load, or why not. */
+export type LogPreview = { ok: true; view: RepoDepsView } | { ok: false; error: string };
 
 /** One row of the signed-in repository picker. */
 export interface RepoPickerRow {

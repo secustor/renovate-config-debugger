@@ -29,6 +29,7 @@ import { useEngineModule } from "./use-engine-module";
 import { type SimulatorForm as SimulatorFormApi, useSimulatorForm } from "./use-simulator-form";
 import { useSyncedReset } from "@/hooks/use-synced-reset";
 import { hasDepsSource, repoDepsSourceLabel } from "@/lib/repo-deps-source";
+import { parseRenovateLog } from "@/lib/renovate-log";
 import type { FormState, PinnedTest } from "@/types/simulator";
 import type { RepoConnectOffer, RepoDepsView } from "@/types/repo";
 
@@ -266,22 +267,42 @@ const PASTE_PLACEHOLDER =
  * `useState` would throw away a descriptor the moment its author looked at the
  * form it filled.
  */
+/** Roadmap 095: the two formats the paste detects. */
+function PasteFormats() {
+  return (
+    <div className="pin-paste-intro">
+      <p className="pin-paste-intro-head">Paste either of these — the format is detected</p>
+      <dl className="pin-paste-formats">
+        <dt className="pill pin-paste-format">Full log</dt>
+        <dd>
+          a JSON log, one object per line (Mend’s <em>Download log</em>), or just its{" "}
+          <code>packageFiles with updates</code> entry — you pick which dependencies to pin
+        </dd>
+        <dt className="pill pin-paste-format">Dependency JSON</dt>
+        <dd>
+          one descriptor object with keys like <code>packageName</code> — fills the Manual form
+        </dd>
+      </dl>
+    </div>
+  );
+}
+
 function PasteJsonTab({
   text,
   onTextChange,
   onFill,
+  onOpenLog,
 }: {
   text: string;
   onTextChange: (text: string) => void;
   onFill: (value: PasteFill) => void;
+  /** A detected log goes to the load overlay's log tab (roadmap 095). */
+  onOpenLog: (text: string, returnFocus: HTMLElement) => void;
 }) {
   const [error, setError] = useState<string | null>(null);
   return (
     <div className="pin-paste">
-      <p className="pin-paste-intro">
-        Paste a dependency descriptor from a Renovate debug log — look for{" "}
-        <code>packageFiles with updates</code> — or any JSON with the same keys.
-      </p>
+      <PasteFormats />
       <textarea
         className="pin-paste-input"
         aria-label="Dependency descriptor JSON"
@@ -294,9 +315,16 @@ function PasteJsonTab({
         <button
           type="button"
           className="btn-primary"
-          onClick={() => {
+          onClick={(e) => {
+            const log = parseRenovateLog(text);
+            if (log.ok) {
+              setError(null);
+              onOpenLog(text, e.currentTarget);
+              return;
+            }
             const result = parsePastedDescriptor(text);
-            setError(result.ok ? null : result.error);
+            // Several JSON lines are a log attempt; its error is the useful one.
+            setError(result.ok ? null : log.lines > 1 ? log.error : result.error);
             if (result.ok) {
               onFill(result.value);
             }
@@ -304,9 +332,7 @@ function PasteJsonTab({
         >
           Parse &amp; fill
         </button>
-        <span className="pin-paste-note">
-          fills the Manual form — unknown keys are ignored, nothing is sent anywhere
-        </span>
+        <span className="pin-paste-note">parsed in your browser — nothing is sent anywhere</span>
       </div>
     </div>
   );
@@ -618,7 +644,14 @@ export function AddTestBox({
             the element is for is the three ARIA attributes. */}
         <div role="tabpanel" id={PIN_TAB_PANEL_ID} aria-labelledby={pinTabId(tab)}>
           {tab === "paste" ? (
-            <PasteJsonTab text={pasteDraft} onTextChange={setPasteDraft} onFill={applyPaste} />
+            <PasteJsonTab
+              text={pasteDraft}
+              onTextChange={setPasteDraft}
+              onFill={applyPaste}
+              onOpenLog={(text, returnFocus) =>
+                repoConnect.onOpenLoad(returnFocus, { tab: "log", text })
+              }
+            />
           ) : null}
           {tab === "repo" ? (
             <RepoTabPanel

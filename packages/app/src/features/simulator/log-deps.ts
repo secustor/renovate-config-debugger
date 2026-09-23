@@ -39,13 +39,18 @@ export function logDepsView(log: RenovateLog, pinnedVersion: string | null): Rep
   const files: RepoDepFile[] = [];
   for (const file of log.packageFiles) {
     const manager = managerLabel(file.manager);
-    const rows = repoDepsOfFile({ ...file, manager, deps: file.deps.map(extractionOnly) });
+    const rows = repoDepsOfFile(
+      { ...file, manager, deps: file.deps.map(extractionOnly) },
+      (index) => file.updates[index] ?? [],
+    );
     deps.push(...rows);
     files.push({
       path: file.fileName,
       managers: [manager],
       depCount: rows.length,
       outcome: rows.length > 0 ? "extracted" : "no-deps",
+      // Counted over the rows, so the overlay's columns agree with each other.
+      updateCount: rows.reduce((sum, row) => sum + (row.updates?.length ?? 0), 0),
     });
   }
   const named = [...log.managers, ...log.packageFiles.map((file) => file.manager)];
