@@ -25,7 +25,8 @@ export interface LogLoadPanelProps {
 
 const LOG_FILE_TYPES = ".log,.json,.ndjson,.jsonl,.txt";
 const PLACEHOLDER =
-  'Paste a Renovate log (one JSON object per line) or just its "packageFiles with updates" entry…';
+  'Paste a Renovate log (one JSON object per line) or just its "packageFiles with updates" entry…\n\n' +
+  "Renovate writes packageFiles with updates at debug level — run with LOG_LEVEL=debug and LOG_FORMAT=json, or use Mend’s Download log.";
 const DEP_NOUN: DataTableNoun = { one: "dependency", many: "dependencies" };
 
 /** Octicon `upload`, inlined — single-use. */
@@ -35,16 +36,6 @@ function UploadIcon() {
       <path d="M2.75 14A1.75 1.75 0 0 1 1 12.25v-2.5a.75.75 0 0 1 1.5 0v2.5c0 .138.112.25.25.25h10.5a.25.25 0 0 0 .25-.25v-2.5a.75.75 0 0 1 1.5 0v2.5A1.75 1.75 0 0 1 13.25 14Z" />
       <path d="M11.78 4.72a.749.749 0 1 1-1.06 1.06L8.75 3.811V9.5a.75.75 0 0 1-1.5 0V3.811L5.28 5.78a.749.749 0 1 1-1.06-1.06l3.25-3.25a.749.749 0 0 1 1.06 0l3.25 3.25Z" />
     </svg>
-  );
-}
-
-function LogHowTo() {
-  return (
-    <p className="log-load-hint">
-      Renovate writes <code>packageFiles with updates</code> at debug level — run with{" "}
-      <code>LOG_LEVEL=debug</code> and <code>LOG_FORMAT=json</code>, or use Mend’s{" "}
-      <em>Download log</em>.
-    </p>
   );
 }
 
@@ -114,7 +105,6 @@ function LogEntry({
           {error}
         </p>
       )}
-      <LogHowTo />
     </>
   );
 }
