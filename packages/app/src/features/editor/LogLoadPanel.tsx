@@ -43,7 +43,7 @@ function LogHowTo() {
     <p className="log-load-hint">
       Renovate writes <code>packageFiles with updates</code> at debug level — run with{" "}
       <code>LOG_LEVEL=debug</code> and <code>LOG_FORMAT=json</code>, or use Mend’s{" "}
-      <em>Download log</em>. Nothing leaves the browser.
+      <em>Download log</em>.
     </p>
   );
 }
