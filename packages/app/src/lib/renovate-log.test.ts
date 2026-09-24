@@ -139,6 +139,43 @@ describe("parseRenovateLog", () => {
     expect(log.packageFiles[0]?.deps[0]?.depName).toBe("a");
   });
 
+  it("reads the bare { baseBranch, config } copied from Mend's log view", () => {
+    const mend = JSON.stringify(
+      {
+        baseBranch: "main",
+        config: {
+          mise: [
+            {
+              deps: [
+                {
+                  depName: "pnpm",
+                  currentValue: "12.5.1",
+                  datasource: "npm",
+                  updates: [{ updateType: "minor", newValue: "12.6.0" }],
+                },
+              ],
+              packageFile: "mise.toml",
+            },
+          ],
+        },
+      },
+      null,
+      2,
+    );
+    for (const text of [mend, "```\n" + mend + "\n```", "packageFiles with updates\n" + mend]) {
+      const log = parsed(text);
+      expect(log.baseBranch).toBe("main");
+      expect(log.packageFiles[0]?.fileName).toBe("mise.toml");
+      expect(log.packageFiles[0]?.updates).toEqual([[{ updateType: "minor", newValue: "12.6.0" }]]);
+    }
+  });
+
+  it("does not mistake an unrelated config object for packageFiles", () => {
+    expect(parseRenovateLog(line({ config: { extends: ["config:recommended"] } }))).toMatchObject({
+      ok: false,
+    });
+  });
+
   it("counts the lines it read when none is a packageFiles entry", () => {
     const info = FIXTURE.split("\n")
       .filter((text) => !text.includes("packageFiles with updates"))

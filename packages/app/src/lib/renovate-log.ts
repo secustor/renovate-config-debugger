@@ -56,22 +56,28 @@ function parseRecord(line: string): LogRecord | null {
   }
 }
 
-/** A JSON array of log objects, one (pretty-printed) object, else NDJSON with
- *  non-JSON lines skipped. */
+/** The text as ONE JSON array or object, or null. */
+function parseWhole(text: string): LogRecord[] | null {
+  try {
+    const value: unknown = JSON.parse(text);
+    if (Array.isArray(value)) {
+      return value.filter(isPlainObject);
+    }
+    return isPlainObject(value) ? [value] : null;
+  } catch {
+    return null;
+  }
+}
+
+/** A JSON array of log objects, one (pretty-printed) object — also inside a code
+ *  fence or behind a copied heading — else NDJSON with non-JSON lines skipped. */
 function readRecords(text: string): LogRecord[] {
   const trimmed = text.trim();
-  if (trimmed.startsWith("[") || trimmed.startsWith("{")) {
-    try {
-      const value: unknown = JSON.parse(trimmed);
-      if (Array.isArray(value)) {
-        return value.filter(isPlainObject);
-      }
-      if (isPlainObject(value)) {
-        return [value];
-      }
-    } catch {
-      // Not one value — fall through to line-by-line.
-    }
+  const start = trimmed.search(/[[{]/);
+  const end = Math.max(trimmed.lastIndexOf("}"), trimmed.lastIndexOf("]"));
+  const whole = start === -1 || end < start ? null : parseWhole(trimmed.slice(start, end + 1));
+  if (whole !== null) {
+    return whole;
   }
   const records: LogRecord[] = [];
   for (const line of trimmed.split(/\r?\n/)) {
@@ -199,6 +205,23 @@ function managersOf(records: readonly LogRecord[], repository: string, baseBranc
   return isPlainObject(managers) ? Object.keys(managers) : [];
 }
 
+/** A `packageFiles with updates` line, or the bare `{ baseBranch, config }` Mend's
+ *  log view copies without its `msg`. */
+function isPackageFilesEntry(record: LogRecord): boolean {
+  const config = record["config"];
+  if (!isPlainObject(config)) {
+    return false;
+  }
+  if (record["msg"] !== undefined) {
+    return record["msg"] === PACKAGE_FILES_MSG;
+  }
+  return Object.values(config).some(
+    (entries) =>
+      Array.isArray(entries) &&
+      entries.some((entry) => isPlainObject(entry) && isNonEmptyString(entry["packageFile"])),
+  );
+}
+
 export function parseRenovateLog(text: string): RenovateLogResult {
   const records = readRecords(text);
   if (records.length === 0) {
@@ -208,7 +231,7 @@ export function parseRenovateLog(text: string): RenovateLogResult {
       lines: 0,
     };
   }
-  const lines = records.filter((r) => r["msg"] === PACKAGE_FILES_MSG && isPlainObject(r["config"]));
+  const lines = records.filter(isPackageFilesEntry);
   const [repository = "", ...otherRepositories] = distinct(lines, "repository");
   const repoLines = lines.filter((r) => (stringField(r, "repository") ?? "") === repository);
   const [baseBranch = "", ...otherBaseBranches] = distinct(repoLines, "baseBranch");
