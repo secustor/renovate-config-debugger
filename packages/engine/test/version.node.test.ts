@@ -1,10 +1,10 @@
 /**
  * Golden twin of version.shimmed.test.ts: roadmap 015's `deriveUpdateType`
  * against real, unshimmed renovate/dist versioning modules — including
- * oracle parity against upstream's own `getUpdateType` + `get`.
+ * oracle parity against upstream's own `classifyRelease` + `get`.
  */
 import { get as getVersioningApi } from "renovate/dist/modules/versioning/index.js";
-import { getUpdateType } from "renovate/dist/workers/repository/process/lookup/update-type.js";
+import { classifyRelease } from "renovate/dist/workers/repository/process/lookup/update-type.js";
 import { describe, expect, it } from "vitest";
 import { deriveUpdateType } from "../src/version";
 
@@ -43,7 +43,7 @@ describe("deriveUpdateType (golden)", () => {
     expect(deriveUpdateType("1.2.3", "1.2.4", "not-a-real-scheme")).toBe("patch");
   });
 
-  it("agrees with upstream getUpdateType + get (oracle parity)", () => {
+  it("agrees with upstream classifyRelease + get (oracle parity)", () => {
     const cases: Array<[string, string, string | undefined]> = [
       ["18.2.0", "19.2.0", undefined],
       ["4.17.20", "4.17.21", "semver"],
@@ -52,7 +52,7 @@ describe("deriveUpdateType (golden)", () => {
     ];
     for (const [current, next, versioning] of cases) {
       const oracleApi = getVersioningApi(versioning);
-      const oracle = getUpdateType({}, oracleApi, current, next);
+      const oracle = classifyRelease(oracleApi, current, next);
       expect(deriveUpdateType(current, next, versioning)).toBe(oracle);
     }
   });

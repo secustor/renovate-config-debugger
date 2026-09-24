@@ -195,12 +195,10 @@ declare module "renovate/dist/modules/versioning/index.js" {
 declare module "renovate/dist/workers/repository/process/lookup/update-type.js" {
   import type { VersioningApi } from "renovate/dist/modules/versioning/index.js";
   /**
-   * Upstream's own major/minor/patch bucketing (`config` is accepted but
-   * unused by the current implementation). Only ever returns one of these
+   * Upstream's own major/minor/patch bucketing. Only ever returns one of these
    * three — rollback/pin/digest/bump/replacement are decided elsewhere.
    */
-  export function getUpdateType(
-    config: RenovateConfig,
+  export function classifyRelease(
     versioningApi: VersioningApi,
     currentVersion: string,
     newVersion: string,

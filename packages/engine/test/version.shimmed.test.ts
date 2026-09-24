@@ -6,7 +6,7 @@
  * versioning schemes this simulator field actually exercises.
  */
 import { get as getVersioningApi } from "renovate/dist/modules/versioning/index.js";
-import { getUpdateType } from "renovate/dist/workers/repository/process/lookup/update-type.js";
+import { classifyRelease } from "renovate/dist/workers/repository/process/lookup/update-type.js";
 import { describe, expect, it } from "vitest";
 import { deriveUpdateType } from "../src/version";
 
@@ -45,7 +45,7 @@ describe("deriveUpdateType (shimmed)", () => {
     expect(deriveUpdateType("1.2.3", "1.2.4", "not-a-real-scheme")).toBe("patch");
   });
 
-  it("agrees with upstream getUpdateType + get (oracle parity)", () => {
+  it("agrees with upstream classifyRelease + get (oracle parity)", () => {
     const cases: Array<[string, string, string | undefined]> = [
       ["18.2.0", "19.2.0", undefined],
       ["4.17.20", "4.17.21", "semver"],
@@ -54,7 +54,7 @@ describe("deriveUpdateType (shimmed)", () => {
     ];
     for (const [current, next, versioning] of cases) {
       const oracleApi = getVersioningApi(versioning);
-      const oracle = getUpdateType({}, oracleApi, current, next);
+      const oracle = classifyRelease(oracleApi, current, next);
       expect(deriveUpdateType(current, next, versioning)).toBe(oracle);
     }
   });
