@@ -276,8 +276,8 @@ function PasteFormats() {
         <dt className="pill pin-paste-format">Full log</dt>
         <dd>
           a JSON log, one object per line (Mend’s <em>Download log</em>), or just its{" "}
-          <code>packageFiles with updates</code> entry — loads all its dependencies into From repo
-          or log
+          <code>packageFiles with updates</code> entry — loads all its dependencies into the{" "}
+          <strong>From repo or log</strong> tab
         </dd>
         <dt className="pill pin-paste-format">Dependency JSON</dt>
         <dd>
