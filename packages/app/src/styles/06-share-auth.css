@@ -232,6 +232,28 @@
   top: 0.6rem;
 }
 
+/* The landing's editor is only as tall as its text: stack editor and overlay in
+   one grid cell so the body grows to the card instead of clipping it. */
+.config-col.landing .editor-body:has(> .repo-overlay) {
+  display: grid;
+}
+
+.config-col.landing .editor-body:has(> .repo-overlay) > * {
+  grid-area: 1 / 1;
+}
+
+.config-col.landing .repo-overlay {
+  inset: auto;
+  position: relative;
+}
+
+.config-col.landing .load-card {
+  margin: 0.6rem;
+  max-height: none;
+  position: relative;
+  inset: auto;
+}
+
 /* The rows' bottom borders separated the form from the editor under it when it
    was a chrome row; inside a card of its own the last one is a stray line. */
 .repo-overlay .repo-panel-row2 {
