@@ -410,7 +410,7 @@ it("offers the loaded repo's dependencies and pins one from the picker (078)", a
   const view = render(<Harness result={result} repoDeps={REPO_DEPS} />);
 
   // The tab is live (a repo was loaded) and shows the extracted rows.
-  fireEvent.click(view.getByRole("tab", { name: "From repository" }));
+  fireEvent.click(view.getByRole("tab", { name: "From repo or log" }));
   expect(view.getByLabelText("Search detected dependencies")).toBeTruthy();
   const row = view.getByText("typescript").closest("li");
   if (!row) {
@@ -468,7 +468,7 @@ it("caps the list at five rows, counts the tail, and drafts inline under its row
   ];
   const result = await run();
   const view = render(<Harness result={result} repoDeps={{ ...REPO_DEPS, deps }} />);
-  fireEvent.click(view.getByRole("tab", { name: "From repository" }));
+  fireEvent.click(view.getByRole("tab", { name: "From repo or log" }));
 
   // Five rows, then the design's tail line naming the hidden rows' files —
   // the list itself never grows past the cap (the column must not scroll for it).
@@ -495,13 +495,13 @@ it("caps the list at five rows, counts the tail, and drafts inline under its row
   expect(view.container.querySelector(".pin-repo-draft")).not.toBeNull();
 });
 
-it("opens on From repository when a repo is already loaded — the design's default door", async () => {
+it("opens on From repo or log when a repo is already loaded — the design's default door", async () => {
   const result = await run();
   const view = render(<Harness result={result} repoDeps={REPO_DEPS} />);
 
   // No pins yet, so the card is open; with the repo's deps on the table the
   // picker is the selected tab without a click…
-  const repoTab = view.getByRole("tab", { name: "From repository" });
+  const repoTab = view.getByRole("tab", { name: "From repo or log" });
   expect(repoTab.getAttribute("aria-selected")).toBe("true");
   expect(view.getByLabelText("Search detected dependencies")).toBeTruthy();
 
@@ -521,7 +521,7 @@ it("offers the connect panel while no repo is loaded — with a link's suggested
   );
 
   // The tab is live (no disabled state left), wears the quiet hint…
-  const repoTab = view.getByRole("tab", { name: /From repository/ });
+  const repoTab = view.getByRole("tab", { name: /From repo or log/ });
   expect(repoTab).toHaveProperty("disabled", false);
   expect(repoTab.textContent).toContain("not loaded");
 
@@ -543,7 +543,7 @@ it("offers the load-a-repository door when nothing suggests a repo", async () =>
       repoConnect={{ suggestion: null, onConnect: () => undefined, onOpenLoad }}
     />,
   );
-  fireEvent.click(view.getByRole("tab", { name: /From repository/ }));
+  fireEvent.click(view.getByRole("tab", { name: /From repo or log/ }));
   expect(view.queryByRole("button", { name: /Reload/ })).toBeNull();
   fireEvent.click(view.getByRole("button", { name: "load a repository…" }));
   expect(onOpenLoad).toHaveBeenCalledTimes(1);
@@ -594,7 +594,7 @@ it("prefills a log-sourced draft from the update Renovate proposed (095)", async
     ],
   };
   const view = render(<Harness result={result} repoDeps={logView([lodash])} />);
-  fireEvent.click(view.getByRole("tab", { name: "From repository" }));
+  fireEvent.click(view.getByRole("tab", { name: "From repo or log" }));
   const row = view.getByText("lodash").closest("li");
   if (!row) {
     throw new Error("the lodash row is missing");

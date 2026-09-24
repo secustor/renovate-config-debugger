@@ -7,7 +7,7 @@ that [087](087-ghost-row-and-repo-deps.md),
 
 ## The ask
 
-Every dependency surface — the Dependencies tab, Tests › From repository and
+Every dependency surface — the Dependencies tab, Tests › From repo or log and
 Pipeline › Extract — needs a repository the debugger may read. Some users will
 not grant that: the repository is private, the org forbids third-party OAuth
 apps, or the host is one the walk cannot list. They can still run Renovate
@@ -89,7 +89,7 @@ single JSON array of log objects, or one (pretty-printed) object — the lone
 
 ## Pinning what Renovate proposed
 
-A log-sourced row in Tests › From repository offers the log's own updates as
+A log-sourced row in Tests › From repo or log offers the log's own updates as
 its quick-pin chips (`minor → 4.18.1`, `digest`, …) instead of the
 patch/minor/major guesses, and the draft opens with that update type and next
 version filled in. A row without updates keeps the three guesses.
@@ -161,7 +161,7 @@ again, or clearing the log, drops the recorded slug.
 it detects ("Full log" and "Dependency JSON"). A paste the log parser accepts
 opens the overlay on its Renovate log tab with the text prefilled
 (`RepoConnectOffer.onOpenLoad(returnFocus, { tab: "log", text })`); the user
-confirms with "Load N dependencies" and picks rows in Tests › From repository.
+confirms with "Load N dependencies" and picks rows in Tests › From repo or log.
 A single descriptor object still fills the Manual form. When neither parses
 and the paste had several JSON lines, the log parser's error is shown.
 

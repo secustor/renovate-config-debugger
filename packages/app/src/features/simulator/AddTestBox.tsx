@@ -43,7 +43,7 @@ import type { RepoConnectOffer, RepoDepsView } from "@/types/repo";
  *
  * Three tabs carry the ways a descriptor arrives: Manual (the simulator's own
  * form, never a simplified copy that would drift from it), Paste JSON (082),
- * and From repository (078) — the dependencies Renovate's own extraction found
+ * and From repo or log (078) — the dependencies Renovate's own extraction found
  * in the loaded repository, enabled only once a repo load makes that offer
  * meaningful. With the third tab live, the strip carries real tablist
  * semantics: `role="tablist"`, `aria-selected`, and arrow-key roving.
@@ -132,7 +132,7 @@ function OneOffErrorNote({ message }: { message: string }) {
 type AddTestTab = "manual" | "paste" | "repo";
 
 /**
- * The design's Manual / Paste JSON / From repository strip — the standard
+ * The design's Manual / Paste JSON / From repo or log strip — the standard
  * `.tab-bar` styling at the card's scale, and (since 078 lit the third tab up)
  * real tablist semantics: `role="tablist"`, `aria-selected`, and arrow-key
  * roving. The repo tab is ALWAYS live: while no repo is loaded it wears a
@@ -174,7 +174,7 @@ function AddTestTabs({
     // selection. `ResultsPanel`'s tab strip asks the same question for the same
     // reason and documents it at length — these are named keys, so Shift counts.
     // Without this the `preventDefault()` below swallows all three gestures
-    // whenever focus sits on Manual / Paste JSON / From repository.
+    // whenever focus sits on Manual / Paste JSON / From repo or log.
     if (anyModifierHeld(e)) {
       return;
     }
@@ -215,7 +215,7 @@ function AddTestTabs({
     ? undefined
     : repoSuggested
       ? "Opened from a shared link — reload the repository to pick from detected dependencies"
-      : "Load the repository to pick from its detected dependencies";
+      : "Load a repository or a Renovate log to pick from its dependencies";
   return (
     // oxlint-disable-next-line jsx-a11y/interactive-supports-focus -- the composite-tablist pattern, same as `ResultsPanel`'s bar: the roving tabindex lives on the `<button role="tab">`s that `tabButton` renders, and the container stays out of the tab order so Tab leaves the bar rather than entering it. `rove` is here because the arrow keys are handled by delegation — the other half of that same pattern, not a sign the container should be focusable.
     <div className="tab-bar pin-add-tabs" role="tablist" aria-label="New pin" onKeyDown={rove}>
@@ -225,10 +225,10 @@ function AddTestTabs({
       {tabButton(
         "repo",
         repoAvailable ? (
-          "From repository"
+          "From repo or log"
         ) : (
           <>
-            From repository
+            From repo or log
             <span className="pin-add-tab-hint">not loaded</span>
           </>
         ),
@@ -276,8 +276,8 @@ function PasteFormats() {
         <dt className="pill pin-paste-format">Full log</dt>
         <dd>
           a JSON log, one object per line (Mend’s <em>Download log</em>), or just its{" "}
-          <code>packageFiles with updates</code> entry — loads all its dependencies into From
-          repository
+          <code>packageFiles with updates</code> entry — loads all its dependencies into From repo
+          or log
         </dd>
         <dt className="pill pin-paste-format">Dependency JSON</dt>
         <dd>
@@ -498,7 +498,7 @@ export function AddTestBox({
   // Roadmap 082: which door the descriptor is coming through, and the drafts
   // in the other two — held here so a tab switch does not throw them away.
   // The DEFAULT is derived, not stored (the design's rule): until the reader
-  // picks a tab, a loaded repository opens the card on From repository — the
+  // picks a tab, a loaded repository opens the card on From repo or log — the
   // picker is the natural door when the deps are already on the table — and
   // Manual otherwise.
   const [chosenTab, setChosenTab] = useState<AddTestTab | null>(null);

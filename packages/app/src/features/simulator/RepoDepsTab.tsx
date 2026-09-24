@@ -8,7 +8,7 @@ import type { PinnedTest } from "@/types/simulator";
 import type { RepoDep, RepoDepsView } from "@/types/repo";
 
 /**
- * Roadmap 078 — the "From repository" tab: the dependencies Renovate's own
+ * Roadmap 078 — the "From repo or log" tab: the dependencies Renovate's own
  * extraction found in the loaded repository's package files, each one click
  * from becoming a pinned test. The quick-pin buttons name the update TYPE
  * (patch/minor/major) because extraction cannot know the next version — the
