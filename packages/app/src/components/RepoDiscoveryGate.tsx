@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { RepoConnectPanel } from "./RepoConnectPanel";
+import { hasDepsSource, repoDepsSourceLabel } from "@/lib/repo-deps-source";
 import type { RepoConnectOffer, RepoDepsView } from "@/types/repo";
 
 /**
@@ -32,17 +33,17 @@ export function RepoDiscoveryGate({
   /** Drawn once discovery has reported. */
   children: ReactNode;
 }) {
-  if (view.repo === "") {
+  if (!hasDepsSource(view)) {
     return <RepoConnectPanel offer={connect} />;
   }
   if (view.status === "idle" || view.status === "loading") {
-    return <p className="repo-status">Reading {view.repo}’s package files…</p>;
+    return <p className="repo-status">Reading {repoDepsSourceLabel(view)}’s package files…</p>;
   }
   if (view.status === "error") {
     return (
       <div className="repo-status">
         <p className="sim-empty-guard">
-          Could not read {view.repo}: {view.error}
+          Could not read {repoDepsSourceLabel(view)}: {view.error}
         </p>
         <button type="button" className="btn-quiet" onClick={onRetry}>
           Try again

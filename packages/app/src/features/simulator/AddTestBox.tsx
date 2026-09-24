@@ -28,6 +28,8 @@ import { useEngineModule } from "./use-engine-module";
 // this module is the one place that holds both.
 import { type SimulatorForm as SimulatorFormApi, useSimulatorForm } from "./use-simulator-form";
 import { useSyncedReset } from "@/hooks/use-synced-reset";
+import { hasDepsSource, repoDepsSourceLabel } from "@/lib/repo-deps-source";
+import { parseRenovateLog } from "@/lib/renovate-log";
 import type { FormState, PinnedTest } from "@/types/simulator";
 import type { RepoConnectOffer, RepoDepsView } from "@/types/repo";
 
@@ -41,7 +43,7 @@ import type { RepoConnectOffer, RepoDepsView } from "@/types/repo";
  *
  * Three tabs carry the ways a descriptor arrives: Manual (the simulator's own
  * form, never a simplified copy that would drift from it), Paste JSON (082),
- * and From repository (078) — the dependencies Renovate's own extraction found
+ * and From repo or log (078) — the dependencies Renovate's own extraction found
  * in the loaded repository, enabled only once a repo load makes that offer
  * meaningful. With the third tab live, the strip carries real tablist
  * semantics: `role="tablist"`, `aria-selected`, and arrow-key roving.
@@ -130,7 +132,7 @@ function OneOffErrorNote({ message }: { message: string }) {
 type AddTestTab = "manual" | "paste" | "repo";
 
 /**
- * The design's Manual / Paste JSON / From repository strip — the standard
+ * The design's Manual / Paste JSON / From repo or log strip — the standard
  * `.tab-bar` styling at the card's scale, and (since 078 lit the third tab up)
  * real tablist semantics: `role="tablist"`, `aria-selected`, and arrow-key
  * roving. The repo tab is ALWAYS live: while no repo is loaded it wears a
@@ -172,7 +174,7 @@ function AddTestTabs({
     // selection. `ResultsPanel`'s tab strip asks the same question for the same
     // reason and documents it at length — these are named keys, so Shift counts.
     // Without this the `preventDefault()` below swallows all three gestures
-    // whenever focus sits on Manual / Paste JSON / From repository.
+    // whenever focus sits on Manual / Paste JSON / From repo or log.
     if (anyModifierHeld(e)) {
       return;
     }
@@ -213,7 +215,7 @@ function AddTestTabs({
     ? undefined
     : repoSuggested
       ? "Opened from a shared link — reload the repository to pick from detected dependencies"
-      : "Load the repository to pick from its detected dependencies";
+      : "Load a repository or a Renovate log to pick from its dependencies";
   return (
     // oxlint-disable-next-line jsx-a11y/interactive-supports-focus -- the composite-tablist pattern, same as `ResultsPanel`'s bar: the roving tabindex lives on the `<button role="tab">`s that `tabButton` renders, and the container stays out of the tab order so Tab leaves the bar rather than entering it. `rove` is here because the arrow keys are handled by delegation — the other half of that same pattern, not a sign the container should be focusable.
     <div className="tab-bar pin-add-tabs" role="tablist" aria-label="New pin" onKeyDown={rove}>
@@ -223,10 +225,10 @@ function AddTestTabs({
       {tabButton(
         "repo",
         repoAvailable ? (
-          "From repository"
+          "From repo or log"
         ) : (
           <>
-            From repository
+            From repo or log
             <span className="pin-add-tab-hint">not loaded</span>
           </>
         ),
@@ -265,22 +267,43 @@ const PASTE_PLACEHOLDER =
  * `useState` would throw away a descriptor the moment its author looked at the
  * form it filled.
  */
+/** Roadmap 095: the two formats the paste detects. */
+function PasteFormats() {
+  return (
+    <div className="pin-paste-intro">
+      <p className="pin-paste-intro-head">Paste either of these — the format is detected</p>
+      <dl className="pin-paste-formats">
+        <dt className="pill pin-paste-format">Full log</dt>
+        <dd>
+          a JSON log, one object per line (Mend’s <em>Download log</em>), or just its{" "}
+          <code>packageFiles with updates</code> entry — loads all its dependencies into the{" "}
+          <strong>From repo or log</strong> tab
+        </dd>
+        <dt className="pill pin-paste-format">Dependency JSON</dt>
+        <dd>
+          one descriptor object with keys like <code>packageName</code> — fills the Manual form
+        </dd>
+      </dl>
+    </div>
+  );
+}
+
 function PasteJsonTab({
   text,
   onTextChange,
   onFill,
+  onOpenLog,
 }: {
   text: string;
   onTextChange: (text: string) => void;
   onFill: (value: PasteFill) => void;
+  /** A detected log goes to the load overlay's log tab (roadmap 095). */
+  onOpenLog: (text: string, returnFocus: HTMLElement) => void;
 }) {
   const [error, setError] = useState<string | null>(null);
   return (
     <div className="pin-paste">
-      <p className="pin-paste-intro">
-        Paste a dependency descriptor from a Renovate debug log — look for{" "}
-        <code>packageFiles with updates</code> — or any JSON with the same keys.
-      </p>
+      <PasteFormats />
       <textarea
         className="pin-paste-input"
         aria-label="Dependency descriptor JSON"
@@ -293,9 +316,16 @@ function PasteJsonTab({
         <button
           type="button"
           className="btn-primary"
-          onClick={() => {
+          onClick={(e) => {
+            const log = parseRenovateLog(text);
+            if (log.ok) {
+              setError(null);
+              onOpenLog(text, e.currentTarget);
+              return;
+            }
             const result = parsePastedDescriptor(text);
-            setError(result.ok ? null : result.error);
+            // Several JSON lines are a log attempt; its error is the useful one.
+            setError(result.ok ? null : log.lines > 1 ? log.error : result.error);
             if (result.ok) {
               onFill(result.value);
             }
@@ -303,9 +333,7 @@ function PasteJsonTab({
         >
           Parse &amp; fill
         </button>
-        <span className="pin-paste-note">
-          fills the Manual form — unknown keys are ignored, nothing is sent anywhere
-        </span>
+        <span className="pin-paste-note">parsed in your browser — nothing is sent anywhere</span>
       </div>
     </div>
   );
@@ -343,7 +371,7 @@ function RepoTabPanel({
     <RepoDiscoveryGate view={view} connect={connect} onRetry={onRetry}>
       {/* Keyed: the search box is per-repo state and must not survive a new load. */}
       <RepoDepsTab
-        key={view.repo}
+        key={repoDepsSourceLabel(view)}
         view={view}
         pins={pins}
         atLimit={atLimit}
@@ -470,7 +498,7 @@ export function AddTestBox({
   // Roadmap 082: which door the descriptor is coming through, and the drafts
   // in the other two — held here so a tab switch does not throw them away.
   // The DEFAULT is derived, not stored (the design's rule): until the reader
-  // picks a tab, a loaded repository opens the card on From repository — the
+  // picks a tab, a loaded repository opens the card on From repo or log — the
   // picker is the natural door when the deps are already on the table — and
   // Manual otherwise.
   const [chosenTab, setChosenTab] = useState<AddTestTab | null>(null);
@@ -478,7 +506,7 @@ export function AddTestBox({
   const [repoDraft, setRepoDraft] = useState<RepoDraft | null>(null);
   // The ghost row (082 revisited) and where focus lands when the card opens.
   const { open, cardRef, openCard, closeCard } = usePinCardOpen(pins.length);
-  const repoAvailable = repoDeps.repo !== "";
+  const repoAvailable = hasDepsSource(repoDeps);
   const tab: AddTestTab = chosenTab ?? (repoAvailable ? "repo" : "manual");
 
   // Per-repo UI state dies with its repo (the panel's sync-during-render
@@ -486,7 +514,7 @@ export function AddTestBox({
   // pinning it would file A's descriptor under B's "detected because you
   // loaded this config from…" claim. The search box resets the same way,
   // through the keyed RepoDepsTab inside `RepoTabPanel`.
-  useSyncedReset(repoDeps.repo, () => {
+  useSyncedReset(repoDepsSourceLabel(repoDeps), () => {
     setRepoDraft(null);
   });
 
@@ -617,7 +645,14 @@ export function AddTestBox({
             the element is for is the three ARIA attributes. */}
         <div role="tabpanel" id={PIN_TAB_PANEL_ID} aria-labelledby={pinTabId(tab)}>
           {tab === "paste" ? (
-            <PasteJsonTab text={pasteDraft} onTextChange={setPasteDraft} onFill={applyPaste} />
+            <PasteJsonTab
+              text={pasteDraft}
+              onTextChange={setPasteDraft}
+              onFill={applyPaste}
+              onOpenLog={(text, returnFocus) =>
+                repoConnect.onOpenLoad(returnFocus, { tab: "log", text })
+              }
+            />
           ) : null}
           {tab === "repo" ? (
             <RepoTabPanel

@@ -1,7 +1,12 @@
 import { fireEvent, render } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { DependenciesPanel } from "./DependenciesPanel";
-import { CONNECT_OFFER as CONNECT, EMPTY_VIEW as EMPTY, repoDep } from "@tools/test/repo-deps";
+import {
+  CONNECT_OFFER as CONNECT,
+  EMPTY_VIEW as EMPTY,
+  logView,
+  repoDep,
+} from "@tools/test/repo-deps";
 import type { RepoDepsView } from "@/types/repo";
 
 /**
@@ -125,5 +130,35 @@ describe("DependenciesPanel", () => {
     expect(view.getByRole("button", { name: "Open in simulator" })).toBeTruthy();
     fireEvent.click(view.getByRole("button", { name: "Pin as test" }));
     expect(onPin).toHaveBeenCalledExactlyOnceWith(DEP.fill);
+  });
+
+  describe("from a Renovate log (roadmap 095)", () => {
+    it("names the log, never platform=local's 'local', and draws the table", () => {
+      const view = renderPanel(logView([DEP]));
+      const text = view.container.textContent;
+      expect(text).toContain("from Renovate log (v44.97.5)");
+      expect(text).not.toContain("local");
+      expect(text).not.toContain("isn’t loaded");
+      expect(view.container.querySelector(".data-table")).not.toBeNull();
+    });
+
+    it("names the log's slug when it has one", () => {
+      const view = renderPanel(logView([DEP], { slug: "acme/webapp" }));
+      expect(view.container.textContent).toContain("from Renovate log of acme/webapp (v44.97.5)");
+    });
+
+    it("notes a Renovate version other than the pinned one", () => {
+      const view = renderPanel(logView([DEP], { renovateVersion: "43.0.0" }));
+      expect(view.container.querySelector(".data-table-note")?.textContent).toContain(
+        "the log was written by Renovate v43.0.0; this debugger runs v44.97.5",
+      );
+    });
+
+    it("says the log listed nothing rather than blaming a repository", () => {
+      const view = renderPanel(logView([]));
+      expect(view.container.textContent).toContain(
+        "No dependencies in the Renovate log (v44.97.5) you loaded",
+      );
+    });
   });
 });

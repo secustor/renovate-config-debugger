@@ -4,6 +4,7 @@ import { countNoun, type DataTableNoun } from "@/components/data-table";
 import { EmptyNote } from "@/components/EmptyNote";
 import { plural } from "@/lib/format";
 import { discoveryCaveats, tallyDiscovery } from "@/lib/discovery-caveats";
+import { isLogSource, logSourceNotes, repoDepsSourceLabel } from "@/lib/repo-deps-source";
 import { RepoDiscoveryGate } from "@/components/RepoDiscoveryGate";
 import {
   DEP_COLUMNS,
@@ -44,7 +45,7 @@ function DependenciesNote({ view }: { view: RepoDepsView }) {
   if (empty > 0) {
     parts.push(`${plural(empty, "matched file")} did not contain any dependencies`);
   }
-  parts.push(...discoveryCaveats(view));
+  parts.push(...discoveryCaveats(view), ...logSourceNotes(view));
   return parts.length === 0 ? null : <p className="data-table-note">{parts.join(" · ")}</p>;
 }
 
@@ -72,7 +73,7 @@ function DependenciesTable({
           tallyDiscovery(view).extracted,
           "package file",
         )}…`}
-        contextNote={`from ${view.repo}`}
+        contextNote={`from ${repoDepsSourceLabel(view)}`}
       />
       <DependenciesNote view={view} />
     </>
@@ -96,8 +97,9 @@ export const DependenciesPanel = memo(function DependenciesPanel({
     <RepoDiscoveryGate view={view} connect={connect} onRetry={onRetry}>
       {view.deps.length === 0 ? (
         <EmptyNote>
-          No dependencies detected in {view.repo}’s package files — nothing the browser engine can
-          read declared one.
+          {isLogSource(view)
+            ? `No dependencies in the ${repoDepsSourceLabel(view)} you loaded — its package files declared none Renovate could extract.`
+            : `No dependencies detected in ${view.repo}’s package files — nothing the browser engine can read declared one.`}
         </EmptyNote>
       ) : (
         <DependenciesTable view={view} onPin={onPin} onOpenInSimulator={onOpenInSimulator} />

@@ -2,12 +2,13 @@ import { type ReactNode, useState } from "react";
 import { countNoun, type DataTableNoun } from "@/components/data-table";
 import { nf, plural } from "@/lib/format";
 import { discoveryCaveats, tallyDiscovery } from "@/lib/discovery-caveats";
+import { isLogSource, logSourceNotes, repoDepsSourceLabel } from "@/lib/repo-deps-source";
 import { filterRepoDeps, hiddenDepFiles, REPO_DEPS_SHOWN, type RepoDraft } from "./repo-deps";
 import type { PinnedTest } from "@/types/simulator";
 import type { RepoDep, RepoDepsView } from "@/types/repo";
 
 /**
- * Roadmap 078 — the "From repository" tab: the dependencies Renovate's own
+ * Roadmap 078 — the "From repo or log" tab: the dependencies Renovate's own
  * extraction found in the loaded repository's package files, each one click
  * from becoming a pinned test. The quick-pin buttons name the update TYPE
  * (patch/minor/major) because extraction cannot know the next version — the
@@ -42,6 +43,43 @@ const DEP_NOUN: DataTableNoun = { one: "dependency", many: "dependencies" };
 
 const QUICK_TYPES = ["patch", "minor", "major"] as const;
 
+/** One quick-pin chip: the draft it opens. */
+interface QuickPin {
+  type: string;
+  newValue: string;
+  fromLog: boolean;
+}
+
+/** A log-sourced row offers the updates Renovate proposed (roadmap 095),
+ *  prefilled; any other row the three types extraction cannot choose between. */
+function quickPinsOf(dep: RepoDep): QuickPin[] {
+  if (dep.updates !== undefined && dep.updates.length > 0) {
+    return dep.updates.map((u) => ({ type: u.updateType, newValue: u.newValue, fromLog: true }));
+  }
+  return QUICK_TYPES.map((type) => ({ type, newValue: "", fromLog: false }));
+}
+
+function QuickPinChips({ dep, onPick }: { dep: RepoDep; onPick: (pin: QuickPin) => void }) {
+  return (
+    <span className="pin-repo-quick">
+      {quickPinsOf(dep).map((pin) => {
+        const to = pin.newValue === "" ? "" : ` to ${pin.newValue}`;
+        return (
+          <button
+            key={`${pin.type}:${pin.newValue}`}
+            type="button"
+            className="btn-chip"
+            aria-label={`Draft a ${pin.type} update of ${dep.depName}${to}`}
+            onClick={() => onPick(pin)}
+          >
+            {pin.newValue === "" ? pin.type : `${pin.type} → ${pin.newValue}`}
+          </button>
+        );
+      })}
+    </span>
+  );
+}
+
 function RepoDepRow({
   dep,
   pinned,
@@ -52,7 +90,7 @@ function RepoDepRow({
   pinned: string | null;
   /** Hidden at MAX_PINS — same rule as the form's quiet Pin. */
   showQuickPins: boolean;
-  onQuickPin: (type: (typeof QUICK_TYPES)[number]) => void;
+  onQuickPin: (pin: QuickPin) => void;
 }) {
   return (
     <li className="pin-repo-row">
@@ -61,19 +99,7 @@ function RepoDepRow({
       {pinned !== null ? (
         <span className="pin-repo-pinned">pinned · {pinned}</span>
       ) : showQuickPins ? (
-        <span className="pin-repo-quick">
-          {QUICK_TYPES.map((type) => (
-            <button
-              key={type}
-              type="button"
-              className="btn-chip"
-              aria-label={`Draft a ${type} update of ${dep.depName}`}
-              onClick={() => onQuickPin(type)}
-            >
-              {type}
-            </button>
-          ))}
-        </span>
+        <QuickPinChips dep={dep} onPick={onQuickPin} />
       ) : null}
     </li>
   );
@@ -139,8 +165,9 @@ function RepoDraftCard({
     <div className="pin-repo-draft">
       <RepoDraftSentence draft={draft} onNewValue={onNewValue} onSubmit={onPin} />
       <p className="pin-repo-draft-note">
-        pre-filled from its package file — packageFile, current value, manager and datasource came
-        along; the next version is yours to name (extraction cannot know it)
+        {draft.fromLog === true
+          ? "pre-filled from the Renovate log — the update type and next version are the ones Renovate proposed"
+          : "pre-filled from its package file — packageFile, current value, manager and datasource came along; the next version is yours to name (extraction cannot know it)"}
       </p>
       <div className="pin-repo-draft-actions">
         {showPin ? (
@@ -181,7 +208,7 @@ function RepoDepItem({
   showQuickPins: boolean;
   draftHere: boolean;
   draftCard: ReactNode;
-  onQuickPin: (type: (typeof QUICK_TYPES)[number]) => void;
+  onQuickPin: (pin: QuickPin) => void;
 }) {
   return (
     <>
@@ -204,8 +231,12 @@ function RepoDepsFootnote({ view, hidden }: { view: RepoDepsView; hidden: readon
     const files = tallyDiscovery(view).extracted;
     parts.push(`${countNoun(view.deps.length, DEP_NOUN)} across ${plural(files, "package file")}`);
   }
-  parts.push(`detected because you loaded this config from ${view.repo}`);
-  parts.push(...discoveryCaveats(view));
+  parts.push(
+    isLogSource(view)
+      ? "taken from the Renovate log you loaded — config edits don’t re-extract"
+      : `detected because you loaded this config from ${view.repo}`,
+  );
+  parts.push(...discoveryCaveats(view), ...logSourceNotes(view));
   return <p className="pin-repo-note">{parts.join(" · ")}</p>;
 }
 
@@ -266,7 +297,7 @@ export function RepoDepsTab({
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
-        <span className="pin-repo-source">from {view.repo}</span>
+        <span className="pin-repo-source">from {repoDepsSourceLabel(view)}</span>
       </div>
       <ul className="pin-repo-list">
         {shown.map((dep) => (
@@ -277,7 +308,9 @@ export function RepoDepsTab({
             showQuickPins={!atLimit}
             draftHere={draft !== null && draft.dep.key === dep.key}
             draftCard={draftCard}
-            onQuickPin={(type) => onDraftChange({ dep, type, newValue: "" })}
+            onQuickPin={({ type, newValue, fromLog }) =>
+              onDraftChange({ dep, type, newValue, fromLog })
+            }
           />
         ))}
       </ul>

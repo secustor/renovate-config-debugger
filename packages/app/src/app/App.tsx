@@ -45,6 +45,8 @@ import { usePlatformContext } from "@/app/use-platform-context";
 import { useInheritedConfigLayer } from "@/app/use-inherited-config-layer";
 import { useRepoLoad } from "@/app/use-repo-load";
 import { useRepoDeps } from "@/features/simulator/use-repo-deps";
+import { useLogDeps } from "@/app/use-log-deps";
+import { repoDepsSourceLabel } from "@/lib/repo-deps-source";
 import type { PipelinePhase } from "@/features/pipeline/phases";
 import { useDepActions } from "@/app/use-dep-actions";
 import { useRepoPicker } from "@/app/use-repo-picker";
@@ -552,7 +554,23 @@ export function App() {
   // Roadmap 093: the walk also runs the run's own customManagers, so the blocks
   // ride in memoized — a re-run that changes them is what re-discovers.
   const customManagers = useMemo(() => customManagerBlocks(result), [result]);
-  const { view: repoDepsView, ensure: ensureRepoDeps } = useRepoDeps(loadedRepo, customManagers);
+  const { view: repoWalkView, ensure: ensureRepoWalk } = useRepoDeps(loadedRepo, customManagers);
+  // Roadmap 095: a loaded Renovate log replaces the walk as the dependency
+  // source until it is cleared or a repository is loaded.
+  const logDeps = useLogDeps({
+    loadedRepo,
+    overlayOpen: repoLoad.repoFormOpen,
+    closeOverlay: repoLoad.closeRepoForm,
+    loadRepo: repoLoad.onLoadRepo,
+  });
+  const { prepare: prepareLoadOverlay } = logDeps;
+  const logView = logDeps.view;
+  const repoDepsView = logView ?? repoWalkView;
+  const ensureRepoDeps = useCallback(() => {
+    if (logView === null) {
+      ensureRepoWalk();
+    }
+  }, [logView, ensureRepoWalk]);
   /**
    * Roadmap 090: which phase the Pipeline tab is showing. Here rather than in
    * the panel because the phase is half of a discovery trigger (below), and
@@ -595,9 +613,12 @@ export function App() {
     () => ({
       suggestion: repoSuggestion,
       onConnect: connectSuggestedRepo,
-      onOpenLoad: openRepoForm,
+      onOpenLoad: (returnFocus, initial) => {
+        prepareLoadOverlay(initial);
+        openRepoForm(returnFocus);
+      },
     }),
-    [repoSuggestion, connectSuggestedRepo, openRepoForm],
+    [repoSuggestion, connectSuggestedRepo, openRepoForm, prepareLoadOverlay],
   );
   // Roadmap 089: the Dependencies tab's two row actions, and the simulator
   // request slot they share with the share link — one cluster, in its own hook.
@@ -1441,6 +1462,8 @@ export function App() {
             onChange={setContent}
             presetHover={presetHover}
             repoLoad={repoLoad}
+            logDeps={logDeps}
+            logSource={logView === null ? null : repoDepsSourceLabel(logView)}
             repo={repoInput}
             onRepoChange={setRepoInput}
             inheritAuto={inheritAuto}

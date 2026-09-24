@@ -15,7 +15,7 @@ import { fireEvent, render, waitFor, within } from "@testing-library/react";
 import { beforeAll, expect, it, vi } from "vitest";
 import type { SimRequest } from "@/hooks/use-share-link";
 import { stubMatchMedia, stubResizeObserver, stubScrollApis } from "@tools/test/jsdom-stubs";
-import { readyView } from "@tools/test/repo-deps";
+import { logView, readyView } from "@tools/test/repo-deps";
 import { EMPTY_REPO_DEPS } from "./repo-deps";
 import { TestsPanel } from "./TestsPanel";
 import type { FormState, PinnedTest } from "@/types/simulator";
@@ -410,7 +410,7 @@ it("offers the loaded repo's dependencies and pins one from the picker (078)", a
   const view = render(<Harness result={result} repoDeps={REPO_DEPS} />);
 
   // The tab is live (a repo was loaded) and shows the extracted rows.
-  fireEvent.click(view.getByRole("tab", { name: "From repository" }));
+  fireEvent.click(view.getByRole("tab", { name: "From repo or log" }));
   expect(view.getByLabelText("Search detected dependencies")).toBeTruthy();
   const row = view.getByText("typescript").closest("li");
   if (!row) {
@@ -468,7 +468,7 @@ it("caps the list at five rows, counts the tail, and drafts inline under its row
   ];
   const result = await run();
   const view = render(<Harness result={result} repoDeps={{ ...REPO_DEPS, deps }} />);
-  fireEvent.click(view.getByRole("tab", { name: "From repository" }));
+  fireEvent.click(view.getByRole("tab", { name: "From repo or log" }));
 
   // Five rows, then the design's tail line naming the hidden rows' files —
   // the list itself never grows past the cap (the column must not scroll for it).
@@ -495,13 +495,13 @@ it("caps the list at five rows, counts the tail, and drafts inline under its row
   expect(view.container.querySelector(".pin-repo-draft")).not.toBeNull();
 });
 
-it("opens on From repository when a repo is already loaded — the design's default door", async () => {
+it("opens on From repo or log when a repo is already loaded — the design's default door", async () => {
   const result = await run();
   const view = render(<Harness result={result} repoDeps={REPO_DEPS} />);
 
   // No pins yet, so the card is open; with the repo's deps on the table the
   // picker is the selected tab without a click…
-  const repoTab = view.getByRole("tab", { name: "From repository" });
+  const repoTab = view.getByRole("tab", { name: "From repo or log" });
   expect(repoTab.getAttribute("aria-selected")).toBe("true");
   expect(view.getByLabelText("Search detected dependencies")).toBeTruthy();
 
@@ -521,7 +521,7 @@ it("offers the connect panel while no repo is loaded — with a link's suggested
   );
 
   // The tab is live (no disabled state left), wears the quiet hint…
-  const repoTab = view.getByRole("tab", { name: /From repository/ });
+  const repoTab = view.getByRole("tab", { name: /From repo or log/ });
   expect(repoTab).toHaveProperty("disabled", false);
   expect(repoTab.textContent).toContain("not loaded");
 
@@ -543,8 +543,72 @@ it("offers the load-a-repository door when nothing suggests a repo", async () =>
       repoConnect={{ suggestion: null, onConnect: () => undefined, onOpenLoad }}
     />,
   );
-  fireEvent.click(view.getByRole("tab", { name: /From repository/ }));
+  fireEvent.click(view.getByRole("tab", { name: /From repo or log/ }));
   expect(view.queryByRole("button", { name: /Reload/ })).toBeNull();
   fireEvent.click(view.getByRole("button", { name: "load a repository…" }));
   expect(onOpenLoad).toHaveBeenCalledTimes(1);
+});
+
+it("hands a pasted Renovate log to the load overlay's log tab (095)", async () => {
+  const result = await run();
+  const onOpenLoad = vi.fn();
+  const view = render(
+    <Harness
+      result={result}
+      repoConnect={{ suggestion: null, onConnect: () => undefined, onOpenLoad }}
+    />,
+  );
+  fireEvent.click(view.getByRole("tab", { name: "Paste JSON" }));
+  expect(view.container.textContent).toContain("Paste either of these — the format is detected");
+  const log = [
+    JSON.stringify({ msg: "Renovate started", renovateVersion: "44.97.5" }),
+    JSON.stringify({
+      msg: "packageFiles with updates",
+      config: { npm: [{ packageFile: "package.json", deps: [{ depName: "react" }] }] },
+    }),
+  ].join("\n");
+  fireEvent.change(view.getByLabelText("Dependency descriptor JSON"), { target: { value: log } });
+  const parse = view.getByRole("button", { name: "Parse & fill" });
+  fireEvent.click(parse);
+
+  expect(onOpenLoad).toHaveBeenCalledWith(parse, { tab: "log", text: log });
+  expect(view.container.querySelector(".pin-import-note")).toBeNull();
+
+  // A log without the entry says so instead of a descriptor error.
+  fireEvent.change(view.getByLabelText("Dependency descriptor JSON"), {
+    target: { value: `${JSON.stringify({ msg: "a" })}\n${JSON.stringify({ msg: "b" })}` },
+  });
+  fireEvent.click(parse);
+  expect(view.container.querySelector(".sim-empty-guard")?.textContent).toContain(
+    "Read 2 log lines, none of them",
+  );
+});
+
+it("prefills a log-sourced draft from the update Renovate proposed (095)", async () => {
+  const result = await run();
+  const lodash = {
+    ...repoDep("package.json", "lodash", "4.17.15"),
+    updates: [
+      { updateType: "minor", newValue: "4.18.1" },
+      { updateType: "digest", newValue: "" },
+    ],
+  };
+  const view = render(<Harness result={result} repoDeps={logView([lodash])} />);
+  fireEvent.click(view.getByRole("tab", { name: "From repo or log" }));
+  const row = view.getByText("lodash").closest("li");
+  if (!row) {
+    throw new Error("the lodash row is missing");
+  }
+  // The log's own updates replace the patch/minor/major guesses.
+  expect(within(row).queryByRole("button", { name: "Draft a patch update of lodash" })).toBeNull();
+  expect(within(row).getByRole("button", { name: "Draft a digest update of lodash" })).toBeTruthy();
+  fireEvent.click(
+    within(row).getByRole("button", { name: "Draft a minor update of lodash to 4.18.1" }),
+  );
+  expect((view.getByLabelText("newValue", { exact: true }) as HTMLInputElement).value).toBe(
+    "4.18.1",
+  );
+  expect(view.container.textContent).toContain("pre-filled from the Renovate log");
+  fireEvent.click(view.getByRole("button", { name: "Pin ⏎" }));
+  await waitFor(() => expect(view.container.textContent).toContain("pinned · minor"));
 });

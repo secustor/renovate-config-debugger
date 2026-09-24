@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { EmptyNote } from "@/components/EmptyNote";
 import { RepoDiscoveryGate } from "@/components/RepoDiscoveryGate";
+import { isLogSource, repoDepsSourceLabel } from "@/lib/repo-deps-source";
 import { ExtractDepsCard } from "./ExtractDepsCard";
 import { ExtractFilesCard } from "./ExtractFilesCard";
 import { ExtractManagersCard } from "./ExtractManagersCard";
@@ -89,8 +90,9 @@ export function ExtractPhase({ view, connect, onRetry, onOpenDependencies }: Ext
     <RepoDiscoveryGate view={view} connect={connect} onRetry={onRetry}>
       {view.files.length === 0 ? (
         <EmptyNote>
-          No package files matched in {view.repo} — none of the managers the browser engine can run
-          claims a file in this repository.
+          {isLogSource(view)
+            ? `The ${repoDepsSourceLabel(view)} you loaded lists no package files — files without dependencies are not in a log.`
+            : `No package files matched in ${view.repo} — none of the managers the browser engine can run claims a file in this repository.`}
         </EmptyNote>
       ) : (
         <ExtractReport view={view} onOpenDependencies={onOpenDependencies} />

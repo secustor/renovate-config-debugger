@@ -11,7 +11,7 @@ import {
   matchedManagerNames,
   scannedFiles,
 } from "./extract-phase";
-import { readyView, repoDep as dep, walkFile } from "@tools/test/repo-deps";
+import { logView, readyView, repoDep as dep, walkFile } from "@tools/test/repo-deps";
 import type { RepoDepsView } from "@/types/repo";
 
 /**
@@ -180,5 +180,24 @@ describe("managerNotes", () => {
   it("reports custom blocks that matched nothing", () => {
     const notes = managerNotes({ ...VIEW, customManagersConsidered: 2 });
     expect(notes).toContain("Your 2 custom manager blocks matched no files.");
+  });
+});
+
+describe("a view loaded from a Renovate log (roadmap 095)", () => {
+  const LOG = logView(VIEW.deps, { renovateVersion: "43.0.0" });
+
+  it("names the log as the source, without an 'of N managers' it cannot know", () => {
+    const [managers, , deps] = extractNodes(LOG);
+    expect(managers?.outcome).toBe("3 managers matched files in the Renovate run");
+    expect(deps?.outcome).toBe("3 dependencies from Renovate log (v43.0.0)");
+  });
+
+  it("states what a log cannot promise instead of the walk's footnote", () => {
+    const notes = managerNotes(LOG);
+    expect(notes).toContain(
+      "The log was written by Renovate v43.0.0; this debugger runs v44.97.5.",
+    );
+    expect(notes.at(-1)).toContain("files without dependencies are not in a log");
+    expect(notes.join(" ")).not.toContain("were not.");
   });
 });

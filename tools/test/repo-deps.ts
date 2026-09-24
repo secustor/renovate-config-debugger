@@ -91,3 +91,29 @@ export function readyView(
     ...over,
   };
 }
+
+/** Roadmap 095: a view loaded from a Renovate log. Defaults to platform=local's
+ *  shape — no slug — written by the pinned version. */
+export function logView(
+  deps: readonly RepoDep[],
+  source: Partial<Extract<RepoDepsView["source"], { kind: "log" }>> = {},
+): RepoDepsView {
+  const slug = source.slug ?? null;
+  const ready = readyView(deps);
+  return {
+    ...ready,
+    // A log has no fetch cap: every file it names was read.
+    files: ready.files.filter((file) => file.outcome !== "not-read"),
+    source: {
+      kind: "log",
+      slug,
+      renovateVersion: "44.97.5",
+      pinnedVersion: "44.97.5",
+      baseBranch: null,
+      otherBaseBranches: [],
+      ...source,
+    },
+    repo: slug ?? "",
+    managersConsidered: 3,
+  };
+}

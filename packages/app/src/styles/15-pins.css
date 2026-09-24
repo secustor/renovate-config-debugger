@@ -708,6 +708,34 @@
   margin: 0;
 }
 
+/* Roadmap 095: which two formats the paste detects. */
+.pin-paste-intro-head {
+  color: var(--ink);
+  font-weight: 600;
+  margin: 0 0 0.3rem;
+}
+
+.pin-paste-formats {
+  display: grid;
+  gap: 0.2rem 0.6rem;
+  grid-template-columns: max-content minmax(0, 1fr);
+  line-height: 1.5;
+  margin: 0;
+}
+
+.pin-paste-format {
+  color: var(--ink);
+  font-weight: 600;
+  /* A grid item stretches to its row; a multi-line description made the pill a circle. */
+  align-self: start;
+  justify-self: start;
+  white-space: nowrap;
+}
+
+.pin-paste-formats dd {
+  margin: 0;
+}
+
 .pin-paste-input {
   background: var(--canvas);
   border: 1px solid var(--border);
