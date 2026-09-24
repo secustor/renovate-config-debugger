@@ -1,5 +1,5 @@
 import pkg from "renovate/package.json";
-import { getUpdateType, getVersioningApi } from "./renovate-adapter";
+import { classifyRelease, getVersioningApi } from "./renovate-adapter";
 
 /** Version of the bundled Renovate whose code processes every config. */
 export const renovateVersion: string = pkg.version;
@@ -41,5 +41,5 @@ export function deriveUpdateType(
   if (!versioningApi.isVersion(current) || !versioningApi.isVersion(next)) {
     return undefined;
   }
-  return getUpdateType({}, versioningApi, current, next);
+  return classifyRelease(versioningApi, current, next);
 }

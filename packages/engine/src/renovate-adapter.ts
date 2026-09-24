@@ -49,7 +49,7 @@ export {
   get as getVersioningApi,
   type VersioningApi,
 } from "renovate/dist/modules/versioning/index.js";
-export { getUpdateType } from "renovate/dist/workers/repository/process/lookup/update-type.js";
+export { classifyRelease } from "renovate/dist/workers/repository/process/lookup/update-type.js";
 // ---- Manager extraction (roadmap 078) --------------------------------------
 // Filename → manager detection: the generated per-manager file patterns are
 // already in the bundle transitively (loadManagerOptions), and getMatchingFiles

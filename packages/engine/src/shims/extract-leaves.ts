@@ -96,6 +96,11 @@ export function isArtifactoryServer(): boolean {
   return false;
 }
 
+// Verbatim from the pinned dist: pure hostname check.
+export function isGoogleArtifactRegistry(hostname: string): boolean {
+  return hostname.endsWith(".pkg.dev");
+}
+
 export function isCrossOriginPaginationAllowed(): boolean {
   return false;
 }
