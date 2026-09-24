@@ -105,7 +105,7 @@
   "customDatasources": {},
   "dockerChildPrefix": "renovate_",
   "dockerCliOptions": null,
-  "dockerSidecarImage": "ghcr.io/renovatebot/base-image:13.99.3",
+  "dockerSidecarImage": "ghcr.io/renovatebot/base-image:13.99.6",
   "dockerUser": "12021",
   "composerIgnorePlatformReqs": [],
   "goGetDirs": [
@@ -9946,6 +9946,17 @@
       ],
       "replacementName": "commit-and-tag-version",
       "replacementVersion": "9.5.0"
+    },
+    {
+      "matchCurrentVersion": ">=1.19.0",
+      "matchDatasources": [
+        "npm"
+      ],
+      "matchPackageNames": [
+        "@temporalio/interceptors-opentelemetry"
+      ],
+      "replacementName": "@temporalio/interceptors-opentelemetry-v2",
+      "replacementVersion": "1.19.0"
     },
     {
       "matchDatasources": [
