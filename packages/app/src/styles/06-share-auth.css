@@ -487,6 +487,12 @@
   padding: 0.1rem 0.5rem;
 }
 
+.log-source-row {
+  display: flex;
+  flex-basis: 100%;
+  order: 1;
+}
+
 .untrusted-endpoint-allow,
 .log-source-clear {
   background: transparent;

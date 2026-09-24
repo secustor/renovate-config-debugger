@@ -140,14 +140,17 @@ export function ConfigToolbar({
         Load repo or log…
       </button>
       {logSource === null ? null : (
-        <span
-          className="pill pill-muted log-source-chip"
-          title="The Dependencies, Tests and Pipeline tabs read this log"
-        >
-          deps from {logSource}
-          <button type="button" className="log-source-clear" onClick={onClearLog}>
-            clear log
-          </button>
+        // A row of its own, ordered last: the chip never shares a line with the actions.
+        <span className="log-source-row">
+          <span
+            className="pill pill-muted log-source-chip"
+            title="The Dependencies, Tests and Pipeline tabs read this log"
+          >
+            deps from {logSource}
+            <button type="button" className="log-source-clear" onClick={onClearLog}>
+              clear log
+            </button>
+          </span>
         </span>
       )}
       {/* Design review: a pasted config is one long line, and the app offered

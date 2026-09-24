@@ -726,7 +726,10 @@
 .pin-paste-format {
   color: var(--ink);
   font-weight: 600;
+  /* A grid item stretches to its row; a multi-line description made the pill a circle. */
+  align-self: start;
   justify-self: start;
+  white-space: nowrap;
 }
 
 .pin-paste-formats dd {
