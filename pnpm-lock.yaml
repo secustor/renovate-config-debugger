@@ -327,8 +327,8 @@ importers:
         specifier: 2.0.3
         version: 2.0.3
       renovate:
-        specifier: 44.107.2
-        version: 44.107.2(supports-color@10.2.2)(typanion@3.14.0)
+        specifier: 44.108.1
+        version: 44.108.1(supports-color@10.2.2)(typanion@3.14.0)
     devDependencies:
       typescript:
         specifier: 7.0.2
@@ -2956,8 +2956,8 @@ packages:
     resolution: {integrity: sha512-ixNtAJndqh173VQ4KodSdJEI6nuioBWI0V1ITNKhZZsO0pEMoDxz539T4FTTbSZ/xIOSuDnzxLVRqBVSvPNE2g==}
     engines: {node: '>=18.0'}
 
-  cronstrue@3.26.0:
-    resolution: {integrity: sha512-PEXTHEir/KllAWMsOQOsv3ZXjI6Y1PA1eVAEM/WhCaesAcCYHldra9pr2jkFH6r/ynbEOAPOGoWYz9NkjP0huA==}
+  cronstrue@3.27.0:
+    resolution: {integrity: sha512-AKhV4ilvx73NmicrZCGASdszUIf2ew0A/6jQQTh4pu3lIUzgWOGjT3Gv3CGIcTQ/p8Qy/tZuCmlaOftj8PXaNg==}
     hasBin: true
 
   cross-spawn@7.0.6:
@@ -5127,8 +5127,8 @@ packages:
   remark@15.0.1:
     resolution: {integrity: sha512-Eht5w30ruCXgFmxVUSlNWQ9iiimq07URKeFS3hNc8cUWy1llX4KDWfyEDZRycMc+znsN9Ux5/tJ/BFdgdOwA3A==}
 
-  renovate@44.107.2:
-    resolution: {integrity: sha512-q53s5oAgWGkXaAGdIQLaFGqN90JGSEc7WVg7xlo0/J/EHpyMuvi4Rzc8lTghOZNRUF3PezzDggSgJ83GbpM6sg==}
+  renovate@44.108.1:
+    resolution: {integrity: sha512-ZdACP2DoqjNuCPjiQxScYkJEYd8yvKKjzpuFy0CXR4RcEJeyX3DWcVmQbQcv4jOoBbnKYM2tlKoWn8HOOAGtow==}
     engines: {node: ^24.11.0, pnpm: ^11.0.0}
     hasBin: true
 
@@ -8565,7 +8565,7 @@ snapshots:
 
   croner@10.0.1: {}
 
-  cronstrue@3.26.0: {}
+  cronstrue@3.27.0: {}
 
   cross-spawn@7.0.6:
     dependencies:
@@ -11092,7 +11092,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  renovate@44.107.2(supports-color@10.2.2)(typanion@3.14.0):
+  renovate@44.108.1(supports-color@10.2.2)(typanion@3.14.0):
     dependencies:
       '@aws-sdk/client-codecommit': 3.1117.0
       '@aws-sdk/client-ec2': 3.1117.0
@@ -11147,7 +11147,7 @@ snapshots:
       commander: 15.0.0
       common-tags: 1.8.2
       croner: 10.0.1
-      cronstrue: 3.26.0
+      cronstrue: 3.27.0
       deepmerge: 4.3.1
       dequal: 2.0.3
       detect-indent: 7.0.2
