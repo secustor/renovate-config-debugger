@@ -148,11 +148,10 @@ export default defineRule({
     },
   },
   createOnce(context) {
+    // Lazy: `context.sourceCode` throws if read in this prologue (oxlint 1.80.0).
+    const textOf: TextOf = (target) => context.sourceCode.getText(target);
     return {
       BlockStatement(node) {
-        // `context.sourceCode` is only readable inside the visitor: reading it
-        // in the `createOnce` prologue throws (oxlint 1.80.0).
-        const textOf: TextOf = (target) => context.sourceCode.getText(target);
         /** The standing claim per target, cleared by anything that synchronises. */
         const last = new Map<string, string>();
         let sawRawAction = false;

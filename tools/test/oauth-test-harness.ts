@@ -67,12 +67,13 @@ function makeWorkerFetch(refresh: () => Response) {
  * Call it once at module scope; the returned handles stay valid across tests
  * (the storages are cleared, not replaced).
  */
+const defaultRefresh = () => jsonResponse({});
+
 export function installOAuthHarness() {
   const local = memoryStorage();
   const session = memoryStorage();
   const g = globalThis as { localStorage?: StorageLike; sessionStorage?: StorageLike };
 
-  const defaultRefresh = () => jsonResponse({});
   let refresh: () => Response = defaultRefresh;
   const baseFetch = makeWorkerFetch(() => refresh());
   const fetchMock = vi.fn(baseFetch);

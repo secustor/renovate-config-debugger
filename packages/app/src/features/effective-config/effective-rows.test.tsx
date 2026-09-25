@@ -116,21 +116,21 @@ describe("the packageRules row", () => {
   });
 });
 
-describe("the description row", () => {
-  function ledgerOf(value: string): DescriptionLedger {
-    const ledger = buildDescriptionLedger(
-      descriptionProvenance({
-        entries: descriptionEntries([
-          { value, via: RECOMMENDED, node: "p1", nodeName: "config:recommended" },
-        ]),
-      }),
-    );
-    if (!ledger) {
-      throw new Error("expected a ledger, got null");
-    }
-    return ledger;
+function ledgerOf(value: string): DescriptionLedger {
+  const ledger = buildDescriptionLedger(
+    descriptionProvenance({
+      entries: descriptionEntries([
+        { value, via: RECOMMENDED, node: "p1", nodeName: "config:recommended" },
+      ]),
+    }),
+  );
+  if (!ledger) {
+    throw new Error("expected a ledger, got null");
   }
+  return ledger;
+}
 
+describe("the description row", () => {
   it("takes its value and its note from the ledger", () => {
     const row = rowFor(
       provEntry(DESCRIPTION_KEY, [provStep(RECOMMENDED, ["Hello."], { action: "concat" })]),

@@ -397,13 +397,13 @@ describe("compare on a config Renovate would refuse", () => {
  * The default is the claim plus its evidence; what it withholds is the
  * bookkeeping — and it says which level returns it.
  */
-describe("compare --detail", () => {
-  async function comparisonAt(...extra: string[]): Promise<Comparison> {
-    const run = await runCli(narrowingArgs("--format", "json", ...extra));
-    expect(run.code).toBe(0);
-    return run.json() as Comparison;
-  }
+async function comparisonAt(...extra: string[]): Promise<Comparison> {
+  const run = await runCli(narrowingArgs("--format", "json", ...extra));
+  expect(run.code).toBe(0);
+  return run.json() as Comparison;
+}
 
+describe("compare --detail", () => {
   test("the default answers with counts, and names the level that lists them", async () => {
     const payload = await comparisonAt();
     expect(payload.matchedInBoth).toBeUndefined();

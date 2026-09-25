@@ -239,6 +239,20 @@ function renderExtras(props: Partial<Parameters<typeof DataTable>[0]> = {}) {
   );
 }
 
+function renderOpenKeys(openKeys: ReadonlySet<string>) {
+  return (
+    <DataTable
+      rows={ROWS}
+      columns={COLUMNS}
+      groupings={[]}
+      leadLabel="Dependency"
+      rowNoun={{ one: "dependency", many: "dependencies" }}
+      filterPlaceholder="Filter 2 dependencies…"
+      openKeys={openKeys}
+    />
+  );
+}
+
 describe("DataTable — the view picker", () => {
   it("renders as the FIRST section of the gear, and switches to the alt view", () => {
     const view = renderExtras({
@@ -455,20 +469,6 @@ describe("DataTable — rich cells and consumer-driven expansion", () => {
     { id: "value", label: "Current value", defaultOn: true, mono: true, width: "16rem" },
     { id: "manager", label: "Manager", defaultOn: false },
   ];
-
-  function renderOpenKeys(openKeys: ReadonlySet<string>) {
-    return (
-      <DataTable
-        rows={ROWS}
-        columns={COLUMNS}
-        groupings={[]}
-        leadLabel="Dependency"
-        rowNoun={{ one: "dependency", many: "dependencies" }}
-        filterPlaceholder="Filter 2 dependencies…"
-        openKeys={openKeys}
-      />
-    );
-  }
 
   it("draws the prepared lead and cell nodes, keeping the text searchable", () => {
     const view = renderExtras({ rows: RICH });

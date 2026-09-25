@@ -49,6 +49,9 @@ const LAYERS = new Map<number, ProvenanceLayer>([
 
 const indices = (rules: RuleEvaluation[]) => rules.map((r) => r.index);
 
+const at = (verdict: "all" | "matched" | "no-input" | "no-match" | "error") =>
+  indices(filterRules(RULES, { verdict, preset: ALL_PRESETS }, LAYERS));
+
 describe("the verdict facet", () => {
   /**
    * Roadmap 073's blocker: a clause whose matcher threw fails its rule to a
@@ -62,8 +65,6 @@ describe("the verdict facet", () => {
   });
 
   test("no-input, no-match and error are separate facets, split like the badge", () => {
-    const at = (verdict: "all" | "matched" | "no-input" | "no-match" | "error") =>
-      indices(filterRules(RULES, { verdict, preset: ALL_PRESETS }, LAYERS));
     expect(at("all")).toEqual([0, 1, 2, 3, 4]);
     expect(at("matched")).toEqual([0]);
     expect(at("no-input")).toEqual([1]);
