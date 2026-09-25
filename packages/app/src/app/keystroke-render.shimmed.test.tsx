@@ -142,10 +142,11 @@ beforeAll(() => {
   stubScrollApis();
 });
 
+const snapshot = () => JSON.stringify({ renderCounts, appCommits });
+
 /** Waits until no commit has changed any counter for a settle window — the
  *  post-run async work (option index, error lib, provenance) has landed. */
 async function waitForQuiescence(): Promise<void> {
-  const snapshot = () => JSON.stringify({ renderCounts, appCommits });
   let last = snapshot();
   let stableSince = Date.now();
   const deadline = Date.now() + 60_000;

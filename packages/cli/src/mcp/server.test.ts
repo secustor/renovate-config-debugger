@@ -841,6 +841,12 @@ describe("size budget", () => {
   });
 });
 
+const errorFor = async (name: string, args: Record<string, unknown>): Promise<string> => {
+  const result = (await client.callTool({ name, arguments: args })) as ToolText;
+  expect(result.isError, JSON.stringify(args)).toBe(true);
+  return result.content[0]?.text ?? "";
+};
+
 describe("strict input schemas", () => {
   test("a typo'd dependency field is named, not silently dropped", async () => {
     const runId = await runConfig(GROUPED);
@@ -899,11 +905,6 @@ describe("strict input schemas", () => {
    * strings.
    */
   test("a rejected argument names the field, and its type", async () => {
-    const errorFor = async (name: string, args: Record<string, unknown>): Promise<string> => {
-      const result = (await client.callTool({ name, arguments: args })) as ToolText;
-      expect(result.isError, JSON.stringify(args)).toBe(true);
-      return result.content[0]?.text ?? "";
-    };
     expect(
       await errorFor("run_config", { content: { extends: ["config:recommended"] } }),
     ).toContain("content: Invalid input: expected string, received object");

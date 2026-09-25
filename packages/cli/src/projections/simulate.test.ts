@@ -333,6 +333,9 @@ describe("comparisonPayload", () => {
   });
 });
 
+const at = (detail: "verdict" | "rules" | "full") =>
+  comparisonPayload(COMPARISON, { scope: "package-rules", detail, transport: "mcp" });
+
 /**
  * Roadmap 073: the comparison's own detail axis. The two things the default
  * drops are the two that cost — `matchedInBoth` (every rule that behaved the
@@ -341,9 +344,6 @@ describe("comparisonPayload", () => {
  * the level that puts them back.
  */
 describe("comparisonPayload detail levels", () => {
-  const at = (detail: "verdict" | "rules" | "full") =>
-    comparisonPayload(COMPARISON, { scope: "package-rules", detail, transport: "mcp" });
-
   test("the default states identity as counts and drops matchedInBoth", () => {
     const payload = at("verdict");
     expect(payload).not.toHaveProperty("matchedInBoth");

@@ -45,6 +45,17 @@ function ids(clauses: DigestClause[]): string[] {
   return clauses.map((c) => c.id);
 }
 
+const warningVerdictText = (warnings: number): string =>
+  clause(
+    buildRunDigest(
+      input({
+        warnings,
+        firstProblem: { severity: "warning", topic: "Configuration Warning", message: "M" },
+      }),
+    ),
+    "verdict",
+  ).text;
+
 describe("verdict", () => {
   test("a clean run opens with the accepted verdict", () => {
     const clauses = buildRunDigest(input());
@@ -98,17 +109,7 @@ describe("verdict", () => {
   });
 
   test("the warnings verdict carries no count — the problems tail owns that", () => {
-    const text = (warnings: number): string =>
-      clause(
-        buildRunDigest(
-          input({
-            warnings,
-            firstProblem: { severity: "warning", topic: "Configuration Warning", message: "M" },
-          }),
-        ),
-        "verdict",
-      ).text;
-    expect(text(3)).toBe(text(1));
+    expect(warningVerdictText(3)).toBe(warningVerdictText(1));
   });
 
   test("errors that are not validation errors do not claim the config was refused", () => {

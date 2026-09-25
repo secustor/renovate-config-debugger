@@ -69,6 +69,12 @@ function rulesFrom(from: number, to: number): Record<string, unknown>[] {
   return rules;
 }
 
+const deep = (leaf: unknown) => ({
+  hostRules: [{ matchHost: "github.com" }],
+  packageRules: rulesFrom(0, 12),
+  customManagers: [{ nested: { deeper: { deepest: leaf } } }],
+});
+
 describe("buildJsonPatch", () => {
   it("emits no hunks for identical values", () => {
     const value = configWith(rulesFrom(0, 5));
@@ -171,11 +177,6 @@ describe("buildJsonPatch", () => {
   });
 
   it("handles a change at the bottom of a deep nesting", () => {
-    const deep = (leaf: unknown) => ({
-      hostRules: [{ matchHost: "github.com" }],
-      packageRules: rulesFrom(0, 12),
-      customManagers: [{ nested: { deeper: { deepest: leaf } } }],
-    });
     expectRoundTrip(deep("one"), deep("two"));
     expectRoundTrip(deep({ a: [1, 2, 3] }), deep({ a: [1, 4, 3] }));
   });

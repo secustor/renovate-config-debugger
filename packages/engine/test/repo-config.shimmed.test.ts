@@ -102,16 +102,16 @@ describe("fetchRepoConfig — github", () => {
   });
 });
 
-describe("fetchRepoConfig — package.json renovate key", () => {
-  function pkgOnly(body: string) {
-    return vi.fn((url: string) => {
-      if (url.endsWith("/contents/package.json")) {
-        return Promise.resolve(ok(body));
-      }
-      return Promise.resolve(notFound());
-    });
-  }
+function pkgOnly(body: string) {
+  return vi.fn((url: string) => {
+    if (url.endsWith("/contents/package.json")) {
+      return Promise.resolve(ok(body));
+    }
+    return Promise.resolve(notFound());
+  });
+}
 
+describe("fetchRepoConfig — package.json renovate key", () => {
   it("extracts an object value pretty-printed", async () => {
     const pkg = JSON.stringify({ name: "x", renovate: { extends: ["config:base"] } });
     vi.stubGlobal("fetch", pkgOnly(pkg));

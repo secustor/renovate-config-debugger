@@ -153,15 +153,15 @@ describe("restoreSession", () => {
   });
 });
 
-describe("getValidToken (cookie-session refresh)", () => {
-  /** A signed-in cookie-mode session whose access token has already expired,
-   *  so the next getValidToken() must go through the cookie refresh. */
-  function seedExpiredCookieSession() {
-    session.map.set("rcd.oauth.token", "gho_expired");
-    session.map.set("rcd.oauth.tokenExpiresAt", String(Date.now() - 1000));
-    local.map.set(COOKIE_SESSION_KEY, String(Date.now() + 60_000));
-  }
+/** A signed-in cookie-mode session whose access token has already expired,
+ *  so the next getValidToken() must go through the cookie refresh. */
+function seedExpiredCookieSession() {
+  session.map.set("rcd.oauth.token", "gho_expired");
+  session.map.set("rcd.oauth.tokenExpiresAt", String(Date.now() - 1000));
+  local.map.set(COOKIE_SESSION_KEY, String(Date.now() + 60_000));
+}
 
+describe("getValidToken (cookie-session refresh)", () => {
   test("a transient refresh failure answers null but keeps the session", async () => {
     seedExpiredCookieSession();
     setRefreshResponse(() =>

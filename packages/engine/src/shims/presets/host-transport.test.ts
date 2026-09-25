@@ -116,6 +116,20 @@ describe("hostFetch error messages (assembled shape)", () => {
   });
 });
 
+/** One 401, then a 200; returns the `authorization` each attempt sent. */
+function stub401ThenOk(): Array<string | undefined> {
+  const seen: Array<string | undefined> = [];
+  stubFetch((_url, init) => {
+    seen.push(init?.headers?.authorization);
+    return Promise.resolve(
+      seen.length === 1
+        ? new Response("nope", { status: 401 })
+        : new Response("{}", { status: 200 }),
+    );
+  });
+  return seen;
+}
+
 /** A revoked-before-expiry token (another tab refreshed the shared grant):
  *  one recovery attempt through the registered handler, one retry, no loop. */
 describe("hostFetch 401 recovery", () => {
@@ -127,20 +141,6 @@ describe("hostFetch 401 recovery", () => {
     label: "GitHub",
     shownEndpoint: "https://api.github.com/",
   };
-
-  /** One 401, then a 200; returns the `authorization` each attempt sent. */
-  function stub401ThenOk(): Array<string | undefined> {
-    const seen: Array<string | undefined> = [];
-    stubFetch((_url, init) => {
-      seen.push(init?.headers?.authorization);
-      return Promise.resolve(
-        seen.length === 1
-          ? new Response("nope", { status: 401 })
-          : new Response("{}", { status: 200 }),
-      );
-    });
-    return seen;
-  }
 
   it("retries once with the handler's replacement token and returns the 200", async () => {
     setPresetAuth({ githubToken: "revoked" });
