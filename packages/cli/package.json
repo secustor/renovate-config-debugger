@@ -48,7 +48,7 @@
   },
   "devDependencies": {
     "@modelcontextprotocol/client": "2.0.0",
-    "@modelcontextprotocol/server": "2.0.0",
+    "@modelcontextprotocol/server": "2.1.0",
     "@renovate-config-debugger/app": "workspace:*",
     "@renovate-config-debugger/engine": "workspace:*",
     "@types/node": "26.6.2",
