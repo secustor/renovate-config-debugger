@@ -62,7 +62,7 @@ RUN pnpm --filter @renovate-config-debugger/app build
 # --- oauth-proxy -------------------------------------------------------------
 # The OAuth token exchange (roadmap 009) without Cloudflare. Only needed by a
 # self-hoster who wants "Sign in with GitHub"; the app works without it.
-FROM node:26.9.0-alpine@sha256:dbaa92e5758cbbcf85d65d5403fdb530fe3442cbe8c6dbfb7ef23365450d5070 AS oauth-proxy
+FROM node:26.10.0-alpine@sha256:0b36e8c136b94cd4fcf02188228e76c31ad5872eef3fec8cbd2eee500cfd9e80 AS oauth-proxy
 WORKDIR /app
 
 # The Worker's own manifest, for its `"type": "module"` — nothing is installed
