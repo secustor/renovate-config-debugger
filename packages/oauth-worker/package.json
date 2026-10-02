@@ -11,6 +11,6 @@
   "devDependencies": {
     "typescript": "7.0.2",
     "vitest": "5.0.2",
-    "wrangler": "4.143.1"
+    "wrangler": "4.144.0"
   }
 }
