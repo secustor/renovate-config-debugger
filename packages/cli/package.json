@@ -55,7 +55,7 @@
     "commander": "15.0.0",
     "typescript": "7.0.2",
     "vite": "8.3.1",
-    "vitest": "5.0.2",
+    "vitest": "5.0.3",
     "zod": "4.6.5"
   },
   "engines": {
