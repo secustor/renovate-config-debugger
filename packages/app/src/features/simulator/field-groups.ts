@@ -24,6 +24,7 @@ export const GROUP_KEYS = {
     "lockFiles",
     "categories",
     "currentVersionTimestamp",
+    "isBreaking",
   ],
 } as const satisfies Record<string, readonly (keyof FormState)[]>;
 
@@ -93,6 +94,7 @@ export const FIELD_SPECS: Record<GroupedKey, FieldSpec> = {
   currentVersionTimestamp: {
     placeholder: "2024-01-01T00:00:00.000Z",
   },
+  isBreaking: { placeholder: "true or false" },
 };
 
 /** The three groups in the order the form shows them, each with the question

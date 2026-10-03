@@ -21,6 +21,7 @@ export const EMPTY_FORM: FormState = {
   repository: "",
   baseBranch: "",
   currentVersionTimestamp: "",
+  isBreaking: "",
 };
 
 export const UPDATE_TYPES = [
@@ -187,6 +188,11 @@ export function isMultiValueKey(key: string): boolean {
   return (MULTI_VALUE_KEYS as readonly string[]).includes(key);
 }
 
+function flag(value: string): boolean | undefined {
+  const t = value.trim().toLowerCase();
+  return t === "true" ? true : t === "false" ? false : undefined;
+}
+
 function list(value: string): string[] | undefined {
   const items = splitValues(value);
   return items.length > 0 ? items : undefined;
@@ -242,6 +248,7 @@ export function toDescriptor(form: FormState, effectiveUpdateType?: string): Dep
     repository: trimmed(form.repository),
     baseBranch: trimmed(form.baseBranch),
     currentVersionTimestamp: trimmed(form.currentVersionTimestamp),
+    isBreaking: flag(form.isBreaking),
   };
 }
 

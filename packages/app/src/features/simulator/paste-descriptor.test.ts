@@ -96,6 +96,11 @@ describe("parsePastedDescriptor", () => {
     );
   });
 
+  it("imports a boolean isBreaking as the form's string", () => {
+    const result = parsePastedDescriptor(JSON.stringify({ packageName: "a", isBreaking: false }));
+    expect(result.ok && result.value.fill.isBreaking).toBe("false");
+  });
+
   it("reports what is wrong instead of failing silently", () => {
     expect(parsePastedDescriptor("   ")).toEqual({
       ok: false,

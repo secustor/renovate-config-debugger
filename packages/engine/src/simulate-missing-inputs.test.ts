@@ -111,6 +111,13 @@ describe("summarizeMissingInputs", () => {
     expect(summarizeMissingInputs([mixed])).toEqual({ rules: 0, groups: [] });
   });
 
+  it("groups a fail-closed matchIsBreaking under isBreaking", () => {
+    const summary = summarizeMissingInputs([noInput(0, "matchIsBreaking", "isBreaking")]);
+    expect(summary.groups.map((g) => [g.fieldList, g.selectors])).toEqual([
+      ["isBreaking", ["matchIsBreaking"]],
+    ]);
+  });
+
   it("ignores matched, not-simulated, clause-less and error-failed rules", () => {
     const summary = summarizeMissingInputs([
       rule(0, "matched", [["matchPackageNames", "matched", "packageName"]]),

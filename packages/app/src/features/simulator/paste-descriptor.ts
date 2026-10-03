@@ -1,6 +1,11 @@
 import { plural } from "@/lib/format";
 import { EMPTY_FORM, isMultiValueKey, joinValues } from "./form";
-import { isPlainObject, isString, isStringArray } from "@renovate-config-debugger/engine/is";
+import {
+  isBoolean,
+  isPlainObject,
+  isString,
+  isStringArray,
+} from "@renovate-config-debugger/engine/is";
 import type { FormState } from "@/types/simulator";
 
 /**
@@ -52,6 +57,10 @@ function coerce(key: keyof FormState, value: unknown): string | undefined {
   }
   if (isMultiValueKey(key) && isStringArray(value)) {
     return joinValues(value);
+  }
+  // `isBreaking` is the one boolean field; the form holds it as "true"/"false".
+  if (key === "isBreaking" && isBoolean(value)) {
+    return String(value);
   }
   return undefined;
 }

@@ -204,6 +204,12 @@ export const GLOSSARY = {
       "When the currently-used version was released, as an ISO timestamp. matchCurrentAge turns it into the dependency's age.",
     url: "https://docs.renovatebot.com/configuration-options/#matchcurrentage",
   },
+  simIsBreaking: {
+    name: "isBreaking",
+    plain:
+      "Whether the update is breaking per its versioning — a major, or a 0.x minor in ecosystems like Cargo. matchIsBreaking compares against it; unset never matches.",
+    url: "https://docs.renovatebot.com/configuration-options/#matchisbreaking",
+  },
   // Replay-02 R3/R4: the rule row's own verdict chip. A rule that lost to an
   // empty simulator field is a different fact from one that mismatched real
   // data, and "no input" is short enough to sit in the row — the card is where

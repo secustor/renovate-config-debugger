@@ -85,7 +85,7 @@ export function renovateShims(): Plugin {
     return undefined;
   }
 
-  /** The three Node stand-ins both resolve hooks below answer with. graceful-fs
+  /** The Node stand-ins (and the execa stub) both resolve hooks below answer with. graceful-fs
    *  PATCHES fs at require time, probing it with a Symbol key that Vite's
    *  browser-external fs facade throws on (see graceful-fs-stub.cjs); node:util
    *  and node:os are reached at module scope by the npm-extraction graph. */
@@ -98,6 +98,9 @@ export function renovateShims(): Plugin {
     }
     if (/^(node:)?os$/.test(source)) {
       return path.join(shimDir, "node-os-stub.cjs");
+    }
+    if (source === "execa") {
+      return path.join(shimDir, "execa.ts");
     }
     return null;
   }
@@ -173,7 +176,6 @@ export function renovateShims(): Plugin {
             "@qnighy/marshal",
             "adm-zip",
             "deepmerge",
-            "execa",
             "find-packages",
             "git-url-parse",
             "github-url-from-git",

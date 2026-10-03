@@ -59,6 +59,13 @@ describe("multi-value fields", () => {
     const form: FormState = { ...EMPTY_FORM, registryUrls: joinValues(["https://a", "https://b"]) };
     expect(toDescriptor(form).registryUrls).toEqual(["https://a", "https://b"]);
   });
+
+  it("sends isBreaking as a boolean, and only for true/false", () => {
+    const values = ["true", " False ", "", "yes"].map(
+      (isBreaking) => toDescriptor({ ...EMPTY_FORM, isBreaking }).isBreaking,
+    );
+    expect(values).toEqual([true, false, undefined, undefined]);
+  });
 });
 
 describe("splitPastedValues", () => {

@@ -134,6 +134,21 @@ describe("simulatePackageRules (golden)", () => {
     expect(simulated.rules.map((r) => r.verdict)).toEqual(["no-match", "matched", "matched"]);
     expect(oracle.automerge).toBe(true);
   });
+
+  it("evaluates matchIsBreaking, failing closed on a missing isBreaking (oracle parity)", async () => {
+    const config = { packageRules: [{ matchIsBreaking: true, labels: ["breaking"] }] };
+    const cases = [
+      [{ ...npmDep, isBreaking: true }, "matched"],
+      [{ ...npmDep, isBreaking: false }, "no-match"],
+      [npmDep, "no-input"],
+    ] as const;
+    for (const [dep, state] of cases) {
+      const simulated = await simulatePackageRules({ config, dep });
+      expect(simulated.rules[0]?.clauses[0]?.state).toBe(state);
+      const oracle = await applyPackageRules(oracleInput(config, dep));
+      expect(simulated.rawFinalConfig).toEqual(oracle);
+    }
+  });
 });
 
 /**
