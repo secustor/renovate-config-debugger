@@ -105,7 +105,7 @@
   "customDatasources": {},
   "dockerChildPrefix": "renovate_",
   "dockerCliOptions": null,
-  "dockerSidecarImage": "ghcr.io/renovatebot/base-image:13.100.2",
+  "dockerSidecarImage": "ghcr.io/renovatebot/base-image:13.105.1",
   "dockerUser": "12021",
   "composerIgnorePlatformReqs": [],
   "goGetDirs": [
@@ -159,7 +159,7 @@
   "allowPlugins": false,
   "allowScripts": false,
   "allowShellExecutorForPostUpgradeCommands": false,
-  "allowCustomCrateRegistries": false,
+  "allowCustomCrateGitRegistries": false,
   "ignorePlugins": false,
   "ignoreScripts": true,
   "platform": "github",
