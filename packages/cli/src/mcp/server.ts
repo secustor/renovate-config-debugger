@@ -251,6 +251,7 @@ const DEP = z
       ])
       .optional(),
     isBump: z.boolean().optional(),
+    isBreaking: z.boolean().optional(),
     versioning: z.string().optional(),
     sourceUrl: z.string().optional(),
     registryUrls: z.array(z.string()).optional(),

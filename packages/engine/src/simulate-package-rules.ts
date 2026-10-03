@@ -59,7 +59,7 @@ import type { ValidationMessage } from "./trace/model";
  * test/simulate-package-rules.node.test.ts.
  */
 
-/** Everything the 18 matchers can read about a hypothetical dependency update. */
+/** Everything the 19 matchers can read about a hypothetical dependency update. */
 export interface DependencyDescriptor {
   manager?: string;
   datasource?: string;
@@ -78,6 +78,8 @@ export interface DependencyDescriptor {
   updateType?: string;
   /** In-range "bump" updates match `matchUpdateTypes: ["bump"]`. */
   isBump?: boolean;
+  /** Whether the update is breaking per its versioning (matchIsBreaking). */
+  isBreaking?: boolean;
   versioning?: string;
   sourceUrl?: string;
   registryUrls?: string[];
@@ -110,6 +112,7 @@ export const DESCRIPTOR_KEY_SET = {
   newValue: true,
   updateType: true,
   isBump: true,
+  isBreaking: true,
   versioning: true,
   sourceUrl: true,
   registryUrls: true,
@@ -331,6 +334,7 @@ export const MATCHER_TABLE: readonly MatcherDescriptor[] = [
     inputFields: ["versioning", "currentValue", "currentVersion", "lockedVersion"],
   },
   { key: "matchUpdateTypes", inputFields: ["updateType", "isBump"] },
+  { key: "matchIsBreaking", inputFields: ["isBreaking"] },
   { key: "matchSourceUrls", inputFields: ["sourceUrl"] },
   { key: "matchRegistryUrls", inputFields: ["registryUrls"] },
   { key: "matchNewValue", inputFields: ["newValue"] },

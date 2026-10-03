@@ -49,6 +49,7 @@ const KEY_ORDER = [
   "categories",
   "currentVersionTimestamp",
   "isBump",
+  "isBreaking",
 ] as const satisfies readonly (keyof DependencyDescriptor)[];
 
 export interface DescriptorEntry {

@@ -31,6 +31,7 @@ export const DESCRIPTOR_TERMS = {
   repository: "simRepository",
   baseBranch: "simBaseBranch",
   currentVersionTimestamp: "simCurrentVersionTimestamp",
+  isBreaking: "simIsBreaking",
   newValue: null,
   updateType: "updateType",
 } as const satisfies Record<keyof FormState, TermId | null>;

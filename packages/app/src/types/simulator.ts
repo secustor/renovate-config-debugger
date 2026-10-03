@@ -39,6 +39,8 @@ export interface FormState {
   repository: string;
   baseBranch: string;
   currentVersionTimestamp: string;
+  /** `"true"` / `"false"`; anything else is unset. */
+  isBreaking: string;
 }
 
 /** One standing test: a dependency the reader wants checked against every run. */

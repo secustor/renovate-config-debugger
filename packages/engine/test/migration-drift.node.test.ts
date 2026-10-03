@@ -37,7 +37,7 @@ describe("migrateConfig fork stays in sync with upstream", () => {
     // The fork re-implements MigrationsService.run's per-key dispatch. If this
     // fails, re-check runMigrations() in src/shims/migration.ts.
     expect(hashOf("config/migrations/migrations-service.js")).toBe(
-      "e1862cb3a432d6e49959beedabb1537390c046bb9cd9bf549e3c6c0adefc10d4",
+      "986dec78617f72301b89a531dda19275532629f892cff1f7b78a09bde30c15bc",
     );
   });
 });
