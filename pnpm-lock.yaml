@@ -194,14 +194,14 @@ importers:
         specifier: 25.0.9
         version: 25.0.9(supports-color@10.2.2)(typescript@7.0.2)
       stylelint:
-        specifier: 17.15.0
-        version: 17.15.0(supports-color@10.2.2)(typescript@7.0.2)
+        specifier: 17.16.0
+        version: 17.16.0(supports-color@10.2.2)(typescript@7.0.2)
       stylelint-declaration-strict-value:
         specifier: 1.12.1
-        version: 1.12.1(stylelint@17.15.0(supports-color@10.2.2)(typescript@7.0.2))
+        version: 1.12.1(stylelint@17.16.0(supports-color@10.2.2)(typescript@7.0.2))
       stylelint-value-no-unknown-custom-properties:
         specifier: 6.1.1
-        version: 6.1.1(stylelint@17.15.0(supports-color@10.2.2)(typescript@7.0.2))
+        version: 6.1.1(stylelint@17.16.0(supports-color@10.2.2)(typescript@7.0.2))
       typescript:
         specifier: 7.0.2
         version: 7.0.2
@@ -5482,8 +5482,8 @@ packages:
     peerDependencies:
       stylelint: '>=16'
 
-  stylelint@17.15.0:
-    resolution: {integrity: sha512-mWIkesYQvQjf4Kvdeu9ns0IL8/K/wtjaGxPqsPd6DlLZvaQxGysJsocxUDrBcyHQ5VleAk4uSMat4yMrVED7PA==}
+  stylelint@17.16.0:
+    resolution: {integrity: sha512-ejlWnbJ13x1GU32+zZXa6sYQJsKKkwSdv2B4rAdO3OWdEmvhSJKcXi5pOphQYSzyaj1kXpuGJr7pcMBNfDIuPw==}
     engines: {node: '>=20.19.0'}
     hasBin: true
 
@@ -11636,18 +11636,18 @@ snapshots:
 
   style-mod@4.1.4: {}
 
-  stylelint-declaration-strict-value@1.12.1(stylelint@17.15.0(supports-color@10.2.2)(typescript@7.0.2)):
+  stylelint-declaration-strict-value@1.12.1(stylelint@17.16.0(supports-color@10.2.2)(typescript@7.0.2)):
     dependencies:
       regexp.escape: 2.0.1
-      stylelint: 17.15.0(supports-color@10.2.2)(typescript@7.0.2)
+      stylelint: 17.16.0(supports-color@10.2.2)(typescript@7.0.2)
 
-  stylelint-value-no-unknown-custom-properties@6.1.1(stylelint@17.15.0(supports-color@10.2.2)(typescript@7.0.2)):
+  stylelint-value-no-unknown-custom-properties@6.1.1(stylelint@17.16.0(supports-color@10.2.2)(typescript@7.0.2)):
     dependencies:
       postcss-value-parser: 4.2.0
       resolve: 1.22.12
-      stylelint: 17.15.0(supports-color@10.2.2)(typescript@7.0.2)
+      stylelint: 17.16.0(supports-color@10.2.2)(typescript@7.0.2)
 
-  stylelint@17.15.0(supports-color@10.2.2)(typescript@7.0.2):
+  stylelint@17.16.0(supports-color@10.2.2)(typescript@7.0.2):
     dependencies:
       '@csstools/css-calc': 3.4.1(@csstools/css-parser-algorithms@4.0.1(@csstools/css-tokenizer@4.0.2))(@csstools/css-tokenizer@4.0.2)
       '@csstools/css-parser-algorithms': 4.0.1(@csstools/css-tokenizer@4.0.2)
