@@ -25,7 +25,7 @@
 # lock file would resolve nothing the checksums don't already cover.
 # The `-debian` tag, not the bare one: since 2026.9.11 the plain tag is
 # distroless and has no /bin/sh, so every RUN below fails to start.
-FROM --platform=$BUILDPLATFORM jdxcode/mise:2026.10.2-debian@sha256:f349d8fe8c0da612d9d0132f83c1d779a72a49ee110248091cbbbd5caea2f0dd AS build
+FROM --platform=$BUILDPLATFORM jdxcode/mise:2026.10.3-debian@sha256:58c4c847f5518a9a87a9a582886a485443dbca5eb024426577f58d586a0990c6 AS build
 
 # CI is what `mise.toml`'s postinstall hook checks: without it the hook fires a
 # full, unfrozen `pnpm install` here, before any manifest has been copied in.
