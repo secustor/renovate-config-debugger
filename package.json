@@ -17,12 +17,12 @@
     "release": "semantic-release"
   },
   "devDependencies": {
-    "@oxlint/plugins": "1.86.0",
+    "@oxlint/plugins": "1.87.0",
     "@semantic-release/exec": "7.1.0",
     "@types/node": "26.6.4",
     "knip": "6.39.0",
     "oxfmt": "0.71.0",
-    "oxlint": "1.86.0",
+    "oxlint": "1.87.0",
     "oxlint-tsgolint": "7.0.2003",
     "semantic-release": "25.0.9",
     "stylelint": "17.16.0",
