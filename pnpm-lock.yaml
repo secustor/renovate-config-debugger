@@ -327,8 +327,8 @@ importers:
         specifier: 2.0.3
         version: 2.0.3
       renovate:
-        specifier: 44.148.5
-        version: 44.148.5(supports-color@10.2.2)(typanion@3.14.0)
+        specifier: 44.149.0
+        version: 44.149.0(supports-color@10.2.2)(typanion@3.14.0)
     devDependencies:
       typescript:
         specifier: 7.0.2
@@ -601,8 +601,8 @@ packages:
     resolution: {integrity: sha512-ooWCrlZP11i8GImSjTHYHLkvFDP48nS4+204nGb1RiX/WXYHmJA2III9/e2DWVabCESdW7hBAEzHRqUn9OUVvQ==}
     engines: {node: '>=0.1.90'}
 
-  '@containerbase/base@14.30.1':
-    resolution: {integrity: sha512-oEpsUn/iR2XCUjgCL9aK1fLhSsJ7QHneUjMfeky9IY0OjWzJNUU9IakOj4DsH1SrSDL2M8DtOzmpVlMc5PCJ1w==}
+  '@containerbase/base@14.31.0':
+    resolution: {integrity: sha512-EALZw+nZZGasgeSYWykt3FiHu7w/TE5G2xpI1A3SgnMIMn0DPaStliBhFP89LC+wcUG+0+lE4ag7N6H3IBxw/w==}
     engines: {node: '>=24.10.0'}
     peerDependencies:
       zod: ^4.0.0
@@ -1962,8 +1962,8 @@ packages:
       '@opentelemetry/api':
         optional: true
 
-  '@renovatebot/base-image@13.117.3':
-    resolution: {integrity: sha512-GgJ3D5YKCc4tnqQnQUzgsn8LPUD4+LnqJl9esvla/4hQHBBFPt0bYp/43wmVlAVUmT8Xoxqoxp3ZfpywgiQkyQ==}
+  '@renovatebot/base-image@13.118.0':
+    resolution: {integrity: sha512-85KVIIzvIFazUBJ4H92hcmQeoUtOGhFIvj6bfPcnto2ZFVfTy5QZpJitEjokYMWX4dliWEb9RPeODkdNqkDlvg==}
     engines: {node: '>=24.10.0'}
     peerDependencies:
       zod: ^4.0.0
@@ -3718,10 +3718,6 @@ packages:
   humanize-ms@1.2.1:
     resolution: {integrity: sha512-Fl70vYtsAFb/C06PTS9dZBo7ihau+Tu/DNCk/OyHhea07S+aeMWpFFkUaXRa8fI+ScZbEI8dfSxwY7gxZ9SAVQ==}
 
-  ignore@7.0.11:
-    resolution: {integrity: sha512-YChdK5txDjwGUvgR7oCJcLGkwi3LDh8Zx8tS7ndYciLEg/oOCL26VUBSUEtgS7EjiybcBqFxh5j0rAdDX7/bbg==}
-    engines: {node: '>= 4'}
-
   ignore@7.0.12:
     resolution: {integrity: sha512-/8UvqAPU9DGTI9k4mxtf49U37Isfwr8Uts96+SBHIkFxPJnHS0Ew4f00sM4Scd8V8EjM0jUNtVDdv1kPdt35lg==}
     engines: {node: '>= 4'}
@@ -5140,8 +5136,8 @@ packages:
   remark@15.0.1:
     resolution: {integrity: sha512-Eht5w30ruCXgFmxVUSlNWQ9iiimq07URKeFS3hNc8cUWy1llX4KDWfyEDZRycMc+znsN9Ux5/tJ/BFdgdOwA3A==}
 
-  renovate@44.148.5:
-    resolution: {integrity: sha512-INFiIDCR1BIAArfaGofTZXGFA6Kfwpm8J5H88USkBm/AmW0DRiTk8tRJpLH8DBpTTEz9NdypRJt8GTWHqrv3QQ==}
+  renovate@44.149.0:
+    resolution: {integrity: sha512-1Ej3D5SzfOzxuIMEnqqKCDAkZFnN7pyFw2DqdVFy0rx135zbiRQy+Uos7F9Z+Wh0NEL1jP3Gnqq/E/IZeWwnZw==}
     engines: {node: ^24.11.0, pnpm: ^11.0.0}
     hasBin: true
 
@@ -6556,7 +6552,7 @@ snapshots:
   '@colors/colors@1.5.0':
     optional: true
 
-  '@containerbase/base@14.30.1(zod@4.6.5)':
+  '@containerbase/base@14.31.0(zod@4.6.5)':
     optionalDependencies:
       zod: 4.6.5
 
@@ -7560,9 +7556,9 @@ snapshots:
     optionalDependencies:
       '@opentelemetry/api': 1.9.1
 
-  '@renovatebot/base-image@13.117.3(zod@4.6.5)':
+  '@renovatebot/base-image@13.118.0(zod@4.6.5)':
     dependencies:
-      '@containerbase/base': 14.30.1(zod@4.6.5)
+      '@containerbase/base': 14.31.0(zod@4.6.5)
     optionalDependencies:
       zod: 4.6.5
 
@@ -9496,8 +9492,6 @@ snapshots:
     dependencies:
       ms: 2.1.3
 
-  ignore@7.0.11: {}
-
   ignore@7.0.12: {}
 
   import-fresh@3.3.1:
@@ -11093,7 +11087,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  renovate@44.148.5(supports-color@10.2.2)(typanion@3.14.0):
+  renovate@44.149.0(supports-color@10.2.2)(typanion@3.14.0):
     dependencies:
       '@aws-sdk/client-codecommit': 3.1139.0
       '@aws-sdk/client-ec2': 3.1139.0
@@ -11126,7 +11120,7 @@ snapshots:
       '@pnpm/parse-overrides': 1001.0.4
       '@qnighy/marshal': 0.1.3
       '@redis/client': 6.3.0(@opentelemetry/api@1.9.1)
-      '@renovatebot/base-image': 13.117.3(zod@4.6.5)
+      '@renovatebot/base-image': 13.118.0(zod@4.6.5)
       '@renovatebot/detect-tools': 4.0.21
       '@renovatebot/good-enough-parser': 2.0.1
       '@renovatebot/osv-offline': 3.0.12(supports-color@10.2.2)
@@ -11171,7 +11165,7 @@ snapshots:
       got: 16.0.0
       graph-data-structure: 4.5.0
       handlebars: 4.7.10
-      ignore: 7.0.11
+      ignore: 7.0.12
       ini: 6.0.0
       json-dup-key-validator: 1.0.3
       json-stringify-pretty-compact: 4.0.0
