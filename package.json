@@ -19,7 +19,7 @@
   "devDependencies": {
     "@oxlint/plugins": "1.87.0",
     "@semantic-release/exec": "7.1.0",
-    "@types/node": "26.6.4",
+    "@types/node": "26.6.5",
     "knip": "6.41.0",
     "oxfmt": "0.71.0",
     "oxlint": "1.87.0",
