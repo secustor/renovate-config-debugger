@@ -327,8 +327,8 @@ importers:
         specifier: 2.0.3
         version: 2.0.3
       renovate:
-        specifier: 44.150.1
-        version: 44.150.1(supports-color@10.2.2)(typanion@3.14.0)
+        specifier: 44.151.0
+        version: 44.151.0(supports-color@10.2.2)(typanion@3.14.0)
     devDependencies:
       typescript:
         specifier: 7.0.2
@@ -1962,8 +1962,8 @@ packages:
       '@opentelemetry/api':
         optional: true
 
-  '@renovatebot/base-image@13.118.4':
-    resolution: {integrity: sha512-xuJlLMF9jWGTChKj1mCDW7poZbJtddZHsgQ6GoPE1n18dbxnEGDiP4LWkjvha/Y4xzeN8H8H7BoOoehNhoQ31A==}
+  '@renovatebot/base-image@13.119.0':
+    resolution: {integrity: sha512-pfsKQkvjUXDcuYU3fxhNaJBHa86RuQLHU2E17UTsH7Tgwx6bxa4nisRRLaurWYsvSQpF1/eRic+mJSJm+wDGVw==}
     engines: {node: '>=24.10.0'}
     peerDependencies:
       zod: ^4.0.0
@@ -5136,8 +5136,8 @@ packages:
   remark@15.0.1:
     resolution: {integrity: sha512-Eht5w30ruCXgFmxVUSlNWQ9iiimq07URKeFS3hNc8cUWy1llX4KDWfyEDZRycMc+znsN9Ux5/tJ/BFdgdOwA3A==}
 
-  renovate@44.150.1:
-    resolution: {integrity: sha512-9TgxuQqzx4Td0Xt/odQWzg8Ct94F9aTuSWTCj51cXQfjjIo67/gbLkqVWv5JZpgikEXwm+w2yUIFhcOQ1cJAmA==}
+  renovate@44.151.0:
+    resolution: {integrity: sha512-7wali5rIvWbnwFG2GDFWGWkcOwfHNubTmJPG2TS1vmfMeDoGGmVz9OLMrVO2JR45/dqW7Qjr7MTZkf+2hmHX5Q==}
     engines: {node: ^24.11.0, pnpm: ^11.0.0}
     hasBin: true
 
@@ -7559,7 +7559,7 @@ snapshots:
     optionalDependencies:
       '@opentelemetry/api': 1.9.1
 
-  '@renovatebot/base-image@13.118.4(zod@4.6.5)':
+  '@renovatebot/base-image@13.119.0(zod@4.6.5)':
     dependencies:
       '@containerbase/base': 14.31.2(zod@4.6.5)
     optionalDependencies:
@@ -11090,7 +11090,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  renovate@44.150.1(supports-color@10.2.2)(typanion@3.14.0):
+  renovate@44.151.0(supports-color@10.2.2)(typanion@3.14.0):
     dependencies:
       '@aws-sdk/client-codecommit': 3.1139.0
       '@aws-sdk/client-ec2': 3.1139.0
@@ -11123,7 +11123,7 @@ snapshots:
       '@pnpm/parse-overrides': 1001.0.4
       '@qnighy/marshal': 0.1.3
       '@redis/client': 6.3.0(@opentelemetry/api@1.9.1)
-      '@renovatebot/base-image': 13.118.4(zod@4.6.5)
+      '@renovatebot/base-image': 13.119.0(zod@4.6.5)
       '@renovatebot/detect-tools': 4.0.21
       '@renovatebot/good-enough-parser': 2.0.1
       '@renovatebot/osv-offline': 3.0.12(supports-color@10.2.2)
