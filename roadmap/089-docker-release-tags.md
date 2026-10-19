@@ -25,7 +25,7 @@ release time.
    action and reasoning as 088's Pages attestation. Every later tag is a retag
    of this digest, so this one signature covers them all:
    `gh attestation verify oci://ghcr.io/secustor/renovate-config-debugger:latest
--R secustor/renovate-config-debugger`.
+   -R secustor/renovate-config-debugger`.
 3. **release.yml**, after semantic-release publishes, runs
    `gh attestation verify` against this commit's `sha-` manifest lists and
    `docker buildx imagetools create -t <version> -t latest` them. A

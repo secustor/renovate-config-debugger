@@ -4,13 +4,13 @@ Milestone: M4 · Status: done 2026-07-23
 
 > Implemented as specified. A new workspace package `packages/oauth-worker` is a
 > stateless Cloudflare Worker token-exchange proxy (pure `handleRequest(req,
-env)` + a thin default export; unit-tested with `fetch` stubbed, no wrangler
+> env)` + a thin default export; unit-tested with `fetch` stubbed, no wrangler
 > needed): CORS locked to an `ALLOWED_ORIGINS` allow-list (reflects the matched
 > origin, never `*`; other origins get 403 before GitHub is touched), `POST
-/exchange` and `POST /refresh` append the `client_secret` (Worker secret) and
+> /exchange` and `POST /refresh` append the `client_secret` (Worker secret) and
 > pass GitHub's token JSON back verbatim, nothing logged. The SPA drives the
 > whole authorization-code + PKCE + `state` flow itself (`packages/app/src/
-oauth.ts`, pure logic): PKCE via `crypto.subtle`, token in memory mirrored to
+> oauth.ts`, pure logic): PKCE via `crypto.subtle`, token in memory mirrored to
 > `sessionStorage` (never `localStorage`, never a URL), silent single-flight
 > refresh, `signOut()` that clears `rcd.oauth.*` and links to GitHub's
 > authorization page for true revocation. The mount effect completes an OAuth

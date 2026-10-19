@@ -15,7 +15,7 @@ the visual system they share:
 - **The header carries the run's digest.** A compact identity row (26px logo,
   title), the run's verdict as a status pill (`accepted` / errors), and the
   digest as jump-links — `1 rewrite · 1,102 presets · 62 effective options ·
-0 problems` — each opening the instrument that explains it. Renovate
+  0 problems` — each opening the instrument that explains it. Renovate
   version and the account menu (066) sit right.
 - **Tests first.** The simulator is recast as _dependency tests_: pinned
   descriptors that are re-checked against the rules on every Run, listed as

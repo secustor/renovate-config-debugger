@@ -135,7 +135,7 @@ follows is the correction.
 ### The Effective tab, rebuilt to the artboard
 
 - **ONE toolbar row, in both views** (GAP-1/GAP-2). The filter box, `only
-overridden`, the view switch (`margin-left: auto`) and the copy now sit in a
+  overridden`, the view switch (`margin-left: auto`) and the copy now sit in a
   single `.prov-filters.prov-toolbar` row that renders as soon as provenance
   exists — where the switch and the copy used to live in the card title and the
   filters in a separate bordered row that existed only in the By-key view. Two
@@ -156,7 +156,7 @@ overridden`, the view switch (`margin-left: auto`) and the copy now sit in a
   set of keys the defaults decided). Its rows are inert — an empty caret slot,
   the key with its docs hover, a grey code value, no cascade — and it closes with
   the design's footer: `N more defaults — show all · hover any key for
-Renovate's docs; no cascade to show — only the default ever touched these`.
+  Renovate's docs; no cascade to show — only the default ever touched these`.
   The two "N default-only options hidden" footnotes are gone with the checkbox
   they pointed at.
 
@@ -170,12 +170,12 @@ Renovate's docs; no cascade to show — only the default ever touched these`.
   A losing step whose value deep-equals the winner's is the one actionable fact
   a row can carry — "this line changes nothing" — and it lived in the chain's
   no-op steps, which every rendering filtered out. The note reads `also set by
-:dependencyDashboard — same value` in the warn tone.
+  :dependencyDashboard — same value` in the warn tone.
 
 - **The third cell is prose, not chips** (GAP-9/GAP-19). `rowNote` produces one
   note per row, ordered by what the reader can act on: the description row's
   `5 presets wrote these`, then the same-value note, then `appended, not
-overridden` / `merged, not overridden` / `overridden`. The winning-layer
+  overridden` / `merged, not overridden` / `overridden`. The winning-layer
   `ProvenanceChip` is gone from the row — the band header above it already names
   that layer — and the one-word badge is gone with it, though the notes that
   name a merge behaviour keep its 016 glossary card.
@@ -189,7 +189,7 @@ overridden` / `merged, not overridden` / `overridden`. The winning-layer
 
 - **No-op steps are cards again.** The stack renders the whole chain, filtering
   nothing. The design's own example (`Renovate defaults → :dependencyDashboard
-→ repo config`) is three cards, and the middle one is a no-op in the engine's
+  → repo config`) is three cards, and the middle one is a no-op in the engine's
   model — "the default was `false` and a preset set it to `true`" is the answer
   even when the default changed nothing. The defaults card's verb is the
   design's `defaults to` rather than `sets`.
@@ -204,7 +204,7 @@ overridden` / `merged, not overridden` / `overridden`. The winning-layer
   — the row describes a VALUE, the ledger counts its own rows). The cap is the
   ledger's, applied across the runs in order so what is shown is always a PREFIX
   of the final array, and one button — `5 more lines · 135 dropped before
-merging →` — reveals both the rest and the dropped section, replacing the
+  merging →` — reveals both the rest and the dropped section, replacing the
   per-run "show all" buttons and the `Not included:` disclosure (whose sentence
   survives as the revealed list's heading).
 
@@ -310,8 +310,8 @@ merging →` — reveals both the rest and the dropped section, replacing the
   less charming and cannot be wrong.
 
 - **The same-value note names the DEFAULTS layer too.** `also set by default —
-same value` on a line the reader wrote is the same finding as `also set by
-:dependencyDashboard — same value`, and it is the one Renovate's own docs ask
+  same value` on a line the reader wrote is the same finding as `also set by
+  :dependencyDashboard — same value`, and it is the one Renovate's own docs ask
   for ("don't restate the defaults"). Several layers agreeing are named as
   `first +N more`.
 
@@ -404,7 +404,7 @@ Two more calls from that pass:
 - **The import note counts two kinds of ignored key, and says which.** The
   artboard's counter buckets everything it did not take as "M unknown keys
   ignored", including a key the form KNOWS whose value it cannot hold (`depType:
-["dependencies"]`, a numeric version) — and calling `depType` unknown while
+  ["dependencies"]`, a numeric version) — and calling `depType` unknown while
   the form is showing a `depType` box reads as a bug in the parser. An ordinary
   log paste still gets the design's sentence verbatim; only when an unusable
   value turns up does the clause become "N keys ignored (M not a string)". The

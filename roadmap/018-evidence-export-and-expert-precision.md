@@ -31,7 +31,7 @@ Milestone: M6 · Status: done 2026-07-24
 > precision:** clause evaluation now distinguishes a matcher's `false` with the
 > read field present (`no-match` — a real mismatch) from `false` with none of
 > the read fields set (`no-input` — upstream's fail-closed `if (!sourceUrl)
-return false`, reported "skipped — no sourceUrl set on the simulated
+> return false`, reported "skipped — no sourceUrl set on the simulated
 > dependency", naming the field), and renames the `null` case `not-applicable`
 > ("skipped, doesn't affect the rule"). `no-input` still fails the rule
 > (verdict + "failed on <clause>" unchanged) so the oracle is untouched — only

@@ -10,12 +10,12 @@ Milestone: M5 · Status: done 2026-07-24
 > which is a hash-only navigation — nothing reloads, so without a listener
 > nothing happens at all). Whether a `hashchange` event should do anything is
 > a pure predicate, `decideHashChangeAction(newHash, lastSelfWrittenToken,
-contentDiffersFromLoaded)` in `share.ts`: it reads the new hash's token,
+> contentDiffersFromLoaded)` in `share.ts`: it reads the new hash's token,
 > ignores it if absent or equal to the last token the app itself wrote, and
 > otherwise reports whether loading it would clobber unsaved edits. Clobber
 > guard: when the editor's current text differs from `loadedContent` (016's
 > baseline), `window.confirm("Load shared config? Your current edits will be
-replaced.")` gates the load; declining restores the address bar to exactly
+> replaced.")` gates the load; declining restores the address bar to exactly
 > what was showing before the navigation, read from the `hashchange` event's
 > own `event.oldURL` (not reconstructed) so a stale token from three
 > navigations ago can never leak back in. Self-mutations: every place the app
@@ -26,7 +26,7 @@ replaced.")` gates the load; declining restores the address bar to exactly
 > own writes (defense in depth: `replaceState` doesn't fire `hashchange` in
 > any current browser, but the bookkeeping is cheap and future-proof).
 > Verified by hand against a production build (`vite preview`, not `vite
-dev`) with hand-generated tokens: a same-tab hash change with no pending
+> dev`) with hand-generated tokens: a same-tab hash change with no pending
 > edits loads and runs silently; with edits present it prompts, declining
 > leaves the editor and address bar untouched, accepting loads and re-runs;
 > dispatching a synthetic `hashchange` for the app's own just-written token

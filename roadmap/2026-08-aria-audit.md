@@ -151,7 +151,7 @@ checkable:
   positioned by, and brings its own Escape protocol that would race the app's
   shared Escape ladder rather than join it.
 - **`role="group"`** (`SequenceTimeline`). The rule offers `address, details,
-fieldset, hgroup, optgroup`; every one means something this is not.
+  fieldset, hgroup, optgroup`; every one means something this is not.
 - **2 × tablist** (`ResultsPanel`, `AddTestBox`). The composite-widget pattern:
   roving tabindex on the tabs, container out of the tab order so Tab moves past
   the bar rather than into it. The container's keydown handler — the thing that

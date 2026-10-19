@@ -3,7 +3,7 @@
 Milestone: M8 · Status: done
 
 > Implemented as specified. A single new module, `packages/app/src/
-input-schemas.ts`, holds every schema and typed parse helper, built
+> input-schemas.ts`, holds every schema and typed parse helper, built
 > exclusively on `zod/mini` (the `zod` package's tree-shakeable functional
 > build — every import in the app is `from "zod/mini"`, never the full `zod`
 > entry point). Three things live there: (1) schemas for the share payload's
@@ -28,7 +28,7 @@ input-schemas.ts`, holds every schema and typed parse helper, built
 > `.refine()` could see it. A guard placed after a zod `.parse()` call would
 > therefore never fire. Every call site in this codebase runs it on the value
 > straight out of `JSON.parse` instead — `configObjectSchema` wraps `z.
-unknown()` (which performs no copy) with a refine, so nesting it inside a
+> unknown()` (which performs no copy) with a refine, so nesting it inside a
 > larger object schema still sees the untouched raw value.
 >
 > Wiring: `share.ts`'s `decodeShareResult` now runs
@@ -78,7 +78,7 @@ unknown()` (which performs no copy) with a refine, so nesting it inside a
 > a new `share.test.ts` (24, share.ts had zero prior unit coverage) plus the
 > pre-existing `run-digest.test.ts` (24) — adversarial cases for `__proto__`
 > at several depths (including inside a share payload's `globalConfig.
-packageRules[n]`), `constructor`/`prototype` keys, `javascript:`/`data:`
+> packageRules[n]`), `constructor`/`prototype` keys, `javascript:`/`data:`
 > endpoints, CR-LF/NUL tokens, wrong-typed `view`/`sim` fields, tampered
 > OAuth-user storage JSON, and the pollution-guard-ordering proof. Two new
 > e2e cases in `10-share-diagnostics.spec.ts` (a polluted `globalConfig` and a

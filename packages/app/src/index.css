@@ -8,10 +8,7 @@
    changes.) */
 :root {
   color-scheme: light dark;
-  font-family:
-    system-ui,
-    -apple-system,
-    sans-serif;
+  font-family: system-ui, -apple-system, sans-serif;
 
   /* ---------- type ----------
      Promoted from ~25 identical inline declarations: every code-bearing

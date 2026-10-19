@@ -130,7 +130,7 @@ pair, in order:
    Advanced / Expert) plus the shared mechanics footer.
 2. Load the scenario file and extract the matching `### <Level>` framing
    from `## Symptom framing`, plus the `## Facts each level is allowed to
-know` bullet for that level. **Never** include the `## Ground truth`
+   know` bullet for that level. **Never** include the `## Ground truth`
    section, or anything derived from it, in the subagent prompt.
 3. Compose the subagent prompt: persona block + shared mechanics footer +
    scenario framing + allowed facts + the pre-generated share link for this

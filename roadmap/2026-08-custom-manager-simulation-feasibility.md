@@ -60,7 +60,7 @@ Two things make this awkward beyond the usual shim caveats:
 
 - The golden/shimmed byte-identity regime does **not** catch it. In this
   checkout `re2`'s native binary is unbuilt (`Cannot find module
-'./build/Release/re2.node'` on Node 26), so the golden project _also_ falls
+  './build/Release/re2.node'` on Node 26), so the golden project _also_ falls
   back to native and the invariant passes vacuously. Verified, not assumed.
 - Named capture groups — `(?<depName>…)`, the thing every custom manager uses —
   _are_ RE2-supported, so whatever checks patterns must not flag them.

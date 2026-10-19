@@ -40,7 +40,7 @@ never means scentless.
   typable; the field works before the engine chunk loads).
   `updateType` stopped being a primary select: it renders as the 015
   derivation's one-liner (`updateType: patch — derived from … ·
-override`) with the select behind "override". Everything else —
+  override`) with the select behind "override". Everything else —
   `manager`, `sourceUrl`, `depName`, `depType`, `packageFile`, and the
   whole former "More fields" tier — merged into ONE "More about this
   update" drawer whose summary line shows the values it holds (015's
@@ -50,7 +50,7 @@ override`) with the select behind "override". Everything else —
   rules" (summary: `N of M matched` + per-layer ProvenanceChip×count
   badges) holds the rule list and its filters; "How the final config
   was built" (summary: `base → N merges → flatten ⊘7 → final · changed
-…`) holds the 046 merge timeline and step panel. Cross-links open
+  …`) holds the 046 merge timeline and step panel. Cross-links open
   what they target: the verdict's matched-count link opens the rules
   drawer; ledger step links, the flatten aside, and a share link's
   `simStep` open the merge drawer at the right stop; validation-message
@@ -72,7 +72,7 @@ override`) with the select behind "override". Everything else —
   but means the contributing LAYER); instead, `ProvenanceChip` — the
   one shared chip component — gained a 016 glossary hover card:
   kind-specific opening line, the merge order `default → global config
-→ inherited config → repo config` (later levels win) with the chip's
+  → inherited config → repo config` (later levels win) with the chip's
   own level marked, and the preset-chip click-to-tree note. Preset
   chips stay clickable.
 

@@ -41,7 +41,7 @@ Three layers, each independently checkable:
    (`subject-checksums`) — GitHub's statement that this workflow built
    these files from this commit. So EVERY served file is an attested
    subject: `gh attestation verify build-manifest.json -R
-secustor/renovate-config-debugger` is the entry point, but the same
+   secustor/renovate-config-debugger` is the entry point, but the same
    command verifies any downloaded asset individually. The build job
    fetches the full history (`fetch-depth: 0`) so `git describe` can name
    the release tag.
@@ -59,7 +59,7 @@ app's promise-stated-twice seam (075):
 
 - the ⓘ after the landing subtitle ("About this build", panel opens below);
 - the landing's closing line — `debugger v0.2.0 · d58538f · built … — verify
-this build` (panel opens above);
+  this build` (panel opens above);
 - the pane-foot stamp `· v0.2.0 d58538f` at the strip's right edge, for the
   share-link reader who never saw the landing (panel opens above-right).
 

@@ -176,7 +176,7 @@ the `repo config` chip is `.badge.prov-layer.explained.prov-repo`.
   because it is where a reader orients, but landing is about the loop the app is
   shaped around — edit → Run → read — and an edit's answer is not "here is what
   your config does in general". Unchanged from 075; `firstError ? problems :
-tests` still decides.
+  tests` still decides.
 
 - **`legacyTabForView` gains no `overview` answer.** It fires only for a
   pre-028 link with no `tab` field, and it infers from what the sender had
@@ -237,7 +237,7 @@ left four gaps plus flags, all closed:
 
 - **069's honest extras survive, un-drawn.** The `≈` marks on approximate
   attributions, the degraded caveat, and the non-string footnote (`N members of
-the description array are not text…`) are all absent from the artboard and all
+  the description array are not text…`) are all absent from the artboard and all
   kept. Each is a promise the engine's own self-check makes; a summary that
   quietly drops part of the array it summarizes is what the footnote exists to
   prevent, and the caveat promises that every untraceable sentence is marked —
