@@ -31,6 +31,8 @@ export { getConfig as getDefaultConfig } from "renovate/dist/config/defaults.js"
 export { GlobalConfig } from "renovate/dist/config/global.js";
 export { InheritConfig } from "renovate/dist/config/inherit.js";
 export { getOptions } from "renovate/dist/config/options/index.js";
+// `parents` alone is partial since upstream added `scopes`; this is the set its validator enforces.
+export { getAllowedParents } from "renovate/dist/config/options/scopes.js";
 // The simulator (006) needs the matcher registry only; `applyPackageRules`
 // itself is deliberately NOT re-exported — its merge tail is replicated in
 // simulate-package-rules.ts, and pulling the real one in would drag slugify +

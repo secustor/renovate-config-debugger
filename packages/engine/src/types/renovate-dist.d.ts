@@ -291,6 +291,14 @@ declare module "renovate/dist/manager-default-configs.generated.js" {
   >;
 }
 
+declare module "renovate/dist/config/options/scopes.js" {
+  /** `parents` plus the expansion of `scopes`; `undefined` when an option declares neither. */
+  export function getAllowedParents(option: {
+    parents?: readonly string[];
+    scopes?: readonly string[];
+  }): string[] | undefined;
+}
+
 declare module "renovate/dist/workers/repository/extract/file-match.js" {
   /** Upstream's path-only matching step — minimatch/regex/logger only. */
   export function getMatchingFiles(

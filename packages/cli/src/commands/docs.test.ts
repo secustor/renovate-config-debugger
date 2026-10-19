@@ -25,7 +25,7 @@ describe("docs", () => {
   });
 
   test("pretty output names the version and says where the option may go", async () => {
-    const run = await runCli(["docs", "minimumReleaseAge"]);
+    const run = await runCli(["docs", "ignoreDeps"]);
     expect(run.code).toBe(0);
     expect(run.stdout).toContain("— Renovate ");
     expect(run.stdout).toContain("placement: no restriction");
