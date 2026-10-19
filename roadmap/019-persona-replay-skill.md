@@ -30,7 +30,7 @@ Milestone: M6 · Status: done 2026-07-24
 > `README.md` template for adding new scenarios (one file = one scenario, no
 > registration step). **`generate-links.mjs`** is a dependency-free Node
 > script producing the exact `share.ts` wire format (`{v:2, renovate,
-config, fileName}` → JSON → UTF-8 → deflate-raw → base64url, no padding)
+> config, fileName}` → JSON → UTF-8 → deflate-raw → base64url, no padding)
 > via Node's global `CompressionStream`/`DecompressionStream`; it reads the
 > pinned Renovate version straight from `packages/engine/package.json`,
 > self-verifies every token by inflating it back before printing a URL, and

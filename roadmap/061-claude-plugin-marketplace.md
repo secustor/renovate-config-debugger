@@ -56,7 +56,7 @@ starts with the tools and the workflow already in place.
 ## Decisions
 
 - **Thin catalog repo, plugin content stays here.** `/plugin marketplace
-add` clones the marketplace repository and re-fetches it on update; an
+  add` clones the marketplace repository and re-fetches it on update; an
   in-repo marketplace would make every plugin consumer clone this entire
   monorepo to read one JSON file. The split takes the best of both:
   consumers get a kilobyte catalog that is one `marketplace add` for

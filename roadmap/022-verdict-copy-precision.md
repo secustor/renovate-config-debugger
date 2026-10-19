@@ -59,7 +59,7 @@ paragraph.
   tooltip framing moved.
 - Verdict sentence (`buildVerdictSentence` in `RuleSimulator.tsx`): empty
   `labels`/`addLabels` and the default unrestricted `schedule: ["at any
-time"]` are now suppressed as no-ops instead of rendered as clauses.
+  time"]` are now suppressed as no-ops instead of rendered as clauses.
   Automerge update-type scoping cites its source preset ("— from
   `:automergeMinor`") when every scoped update type traces to the same
   preset via the existing `computeRuleProvenance` data; left uncredited when

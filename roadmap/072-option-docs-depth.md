@@ -53,7 +53,7 @@ has no build SHA. This is an upstream data gap, not a projection gap.
 Three responses, none of them fabrication:
 
 - Every pretty header names the pinned version (`packageRules (array) —
-Renovate 44.7.4`), and `--search` counts against it.
+  Renovate 44.7.4`), and `--search` counts against it.
 - `optionsSourceUrl` is a version-pinned citation
   (`https://www.npmjs.com/package/renovate/v/<version>`). The per-option `url`
   points at docs.renovatebot.com, which serves LATEST and silently drifts from

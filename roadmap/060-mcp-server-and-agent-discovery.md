@@ -64,7 +64,7 @@ out that this exists.
 
 - **The tools are the CLI's projections, not a second implementation.** 058's
   command modules were refactored first: `src/projections/{digest,tree,
-provenance,messages}.ts` now hold the shapes, and the subcommands and the
+  provenance,messages}.ts` now hold the shapes, and the subcommands and the
   MCP tools both import them. So "no new functionality" is structural — a
   change to what `get_preset_tree` answers is a change to what `rcd tree`
   answers.

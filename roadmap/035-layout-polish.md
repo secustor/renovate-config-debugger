@@ -137,7 +137,7 @@ Suite: 39 existing + 4 new = 43, all green.
   change, not a layout fix.
 - **The repo-root `renovate.json` was committed with invalid JSON** (a
   missing comma after `extends`, from `chore: run pnpm dedupe on renovate
-upgrades`). It made `pnpm format` fail repo-wide, independently of this
+  upgrades`). It made `pnpm format` fail repo-wide, independently of this
   work; fixed here because the verification gate requires a clean `format`.
 
 ## Dependencies

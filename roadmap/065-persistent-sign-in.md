@@ -62,7 +62,7 @@ live entry point (before the DNS switch).
 - `POST /exchange`, `POST /refresh` (success): the `refresh_token` is removed
   from the JSON body and set as
   `__Secure-rcd-refresh=<token>; HttpOnly; Secure; SameSite=Strict;
-Path=<mount>; Max-Age=<refresh_token_expires_in>`; the body instead carries
+  Path=<mount>; Max-Age=<refresh_token_expires_in>`; the body instead carries
   `refresh_token_cookie: true` (how the SPA knows which mode it is talking
   to) and keeps `refresh_token_expires_in` (feeds the localStorage marker).
   GitHub rotates refresh tokens, so every successful refresh re-sets the

@@ -36,7 +36,7 @@ radiogroup semantics a hand-rolled row of buttons always forgets.
   and only once discovery has REPORTED: a zero before that would claim the
   repository has none (089's rule for the tab badges, applied to a segment).
 - **Lookup** and **Update** — rendered, disabled, `title="Not available
-today"`, subtitle "not available yet". Both need the live datasource calls
+  today"`, subtitle "not available yet". Both need the live datasource calls
   the engine deliberately severs (078's "not in scope"), so the honest thing
   is to name them and say so. Dropping them would teach the sequence wrong,
   and enabling them would be a lie with a spinner on it.
@@ -111,7 +111,7 @@ managers }] }` from the same single pass. Same cost, same order, one caller.
   what TRIGGERS discovery, and every results panel stays mounted (028), so a
   panel-side effect would fire for a tab nobody has looked at. App's existing
   `tab === "deps"` trigger became `tab === "deps" || (tab === "pipeline" &&
-phase === "extract")`; `ensure` is idempotent per loaded repo, so the three
+  phase === "extract")`; `ensure` is idempotent per loaded repo, so the three
   doors onto discovery never discover twice — and its identity is keyed to that
   repo, so a phase left open re-discovers when a new load changes the key.
 - It reaches the panel through the run-view context (086's admission rule: it

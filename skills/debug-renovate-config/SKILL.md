@@ -196,7 +196,7 @@ its verdict rather than a failure.
   elision keeps both ends of a shrunk array, so a rule your own config
   appended last is not the one that vanished.
 - **`simulate` answers the question by default.** Its default `detail:
-"verdict"` payload is the matched rules, `flattened` and
+  "verdict"` payload is the matched rules, `flattened` and
   `finalDependencyConfig`; the ~1 MB step-by-step merge trace (`mergeSteps`,
   `rawFinalConfig`) only comes with `detail: "full"`, which is over budget by
   construction and arrives elided. Reach for it only when the per-step merge

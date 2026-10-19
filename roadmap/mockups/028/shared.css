@@ -1,9 +1,6 @@
 :root {
   color-scheme: light dark;
-  font-family:
-    system-ui,
-    -apple-system,
-    sans-serif;
+  font-family: system-ui, -apple-system, sans-serif;
   --border: light-dark(#d0d7de, #3d444d);
   --surface: light-dark(#f6f8fa, #151b23);
   --accent: #0969da;
