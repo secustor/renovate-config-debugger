@@ -62,7 +62,8 @@ describe("optionDocLines", () => {
       }
       expect(text, doc.name).toContain(isUnrestricted ? "placement: no restriction" : "placement:");
     }
-    expect(unrestricted).toBeGreaterThan(300);
+    // upstream is giving every option `scopes` (#43020), so only a floor of one: `$schema`
+    expect(unrestricted).toBeGreaterThan(0);
   });
 
   test("the header names the pinned Renovate, and the citation is version-pinned", () => {

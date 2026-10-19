@@ -105,7 +105,7 @@
   "customDatasources": {},
   "dockerChildPrefix": "renovate_",
   "dockerCliOptions": null,
-  "dockerSidecarImage": "ghcr.io/renovatebot/base-image:13.119.2",
+  "dockerSidecarImage": "ghcr.io/renovatebot/base-image:13.131.3",
   "dockerUser": "12021",
   "composerIgnorePlatformReqs": [],
   "goGetDirs": [
@@ -3000,6 +3000,22 @@
         "https://github.com/googleapis/google-api-dotnet-client"
       ],
       "groupName": "google-api-dotnet-client monorepo",
+      "matchUpdateTypes": [
+        "digest",
+        "patch",
+        "minor",
+        "major"
+      ]
+    },
+    {
+      "description": [
+        "google-cloud-rust monorepo",
+        "Group packages from google-cloud-rust monorepo together."
+      ],
+      "matchSourceUrls": [
+        "https://github.com/googleapis/google-cloud-rust"
+      ],
+      "groupName": "google-cloud-rust monorepo",
       "matchUpdateTypes": [
         "digest",
         "patch",
@@ -8014,6 +8030,17 @@
       ]
     },
     {
+      "groupName": "boto",
+      "matchDatasources": [
+        "pypi"
+      ],
+      "matchPackageNames": [
+        "boto3",
+        "botocore",
+        "s3transfer"
+      ]
+    },
+    {
       "groupName": "CodeMirror",
       "matchPackageNames": [
         "@codemirror/**"
@@ -9785,6 +9812,16 @@
       "replacementName": "pglombardo/pwpush"
     },
     {
+      "matchCurrentVersion": ">=10.0.0",
+      "matchDatasources": [
+        "npm"
+      ],
+      "matchPackageNames": [
+        "react-native-magic-modal"
+      ],
+      "replacementName": "magic-modal"
+    },
+    {
       "matchCurrentVersion": ">=2.0.0 <4.0.0",
       "matchDatasources": [
         "npm"
@@ -10820,7 +10857,7 @@
   "additionalReviewers": [],
   "postUpdateOptions": [],
   "constraints": {
-    "ghActionsLock": "v0.1.6"
+    "ghActionsLock": "v0.2.0"
   },
   "hostRules": [],
   "cacheHardTtlMinutes": 10080,

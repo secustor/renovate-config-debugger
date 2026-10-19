@@ -1,4 +1,4 @@
-import { getOptions } from "./renovate-adapter";
+import { getAllowedParents, getOptions } from "./renovate-adapter";
 import { renovateVersion } from "./version";
 
 /**
@@ -27,20 +27,20 @@ export interface OptionRequiredIf {
  * WHERE an option may appear — stated, never left to inference.
  *
  * Renovate's validator builds `optionParents` only from options that declare
- * `parents` and enforces nesting only for those keys (upstream
- * `config/validation.js`), so an absent `parents` is not missing data: it is
+ * `parents` or `scopes` (upstream `getAllowedParents`) and enforces nesting
+ * only for those keys, so declaring neither is not missing data: it is
  * upstream saying the option is legal at the top level AND inside any
  * container object. Making this field required is what stops a renderer
  * silently printing nothing and letting the reader guess.
  */
 export type OptionPlacement =
   /**
-   * Upstream declares `parents`: Renovate's validator rejects the option
-   * anywhere else. `topLevel` is upstream's `"."` entry, lifted out — it is a
+   * Upstream declares `parents` or `scopes`: Renovate's validator rejects the
+   * option anywhere else. `topLevel` is upstream's `"."` entry, lifted out — it is a
    * placement fact, not the name of a parent option.
    */
   | { readonly kind: "restricted"; readonly parents: readonly string[]; readonly topLevel: boolean }
-  /** Upstream declares NO `parents` — see above; this is a statement about
+  /** Upstream declares neither — see above; this is a statement about
    *  upstream's code, not an assumption. */
   | { readonly kind: "unrestricted" };
 
@@ -115,12 +115,12 @@ export interface OptionDoc {
 export interface OptionIndex {
   /**
    * Container option name → the options RESTRICTED to it (see
-   * `OptionDoc.childOptions`), derived from the `parents` declarations —
+   * `OptionDoc.childOptions`), derived from upstream's `getAllowedParents` —
    * packageRules, hostRules, major, npm, …. Keys of objects nested under
    * anything else (constraints, customEnvVariables, …) are free-form.
    *
-   * A lower bound on truth: `minor` is here only because `enabled` declares
-   * `parents: ["minor"]`.
+   * A lower bound on truth: `minor` is here only because options like
+   * `enabled` declare the `updateType` scope.
    */
   containers: ReadonlyMap<string, readonly string[]>;
   options: ReadonlyMap<string, OptionDoc>;
@@ -241,6 +241,7 @@ export function getOptionIndex(): OptionIndex {
   options.set(SCHEMA_OPTION.name, SCHEMA_OPTION);
   const containers = new Map<string, string[]>();
   for (const option of getOptions()) {
+    const parents = getAllowedParents(option);
     const page = option.globalOnly ? "self-hosted-configuration" : "configuration-options";
     options.set(option.name, {
       name: option.name,
@@ -259,7 +260,7 @@ export function getOptionIndex(): OptionIndex {
       ),
       deprecationMsg: option.deprecationMsg,
       advancedUse: option.advancedUse,
-      placement: placementOf(option.parents),
+      placement: placementOf(parents),
       patternMatch: flag(option.patternMatch),
       allowNegative: flag(option.allowNegative),
       supportsTemplating: flag(option.supportsTemplating),
@@ -275,7 +276,7 @@ export function getOptionIndex(): OptionIndex {
       notes: notesFor(option),
       url: `https://docs.renovatebot.com/${page}/#${option.name.toLowerCase()}`,
     });
-    for (const parent of option.parents ?? []) {
+    for (const parent of parents ?? []) {
       if (parent !== ".") {
         const children = containers.get(parent);
         if (children) {

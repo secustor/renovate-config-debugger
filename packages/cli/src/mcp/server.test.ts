@@ -1649,7 +1649,7 @@ describe("explain_message and get_option_docs", () => {
   });
 
   test("an option with no upstream parents says so instead of staying silent", async () => {
-    const doc = (await call("get_option_docs", { name: "minimumReleaseAge" })) as {
+    const doc = (await call("get_option_docs", { name: "ignoreDeps" })) as {
       placement: { kind: string };
       isContainer?: boolean;
     };

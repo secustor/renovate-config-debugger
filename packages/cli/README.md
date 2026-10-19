@@ -128,8 +128,9 @@ restated prose. Besides type, default, allowed values and deprecation:
 | `inheritable` | may be set in the inherited config layer                                       |
 
 `placement: no restriction` comes from upstream's own code, not a guess:
-Renovate's validator enforces nesting only for options that declare `parents`,
-so an option without them is legal at the top level and inside any container.
+Renovate's validator enforces nesting only for options that declare `parents`
+or `scopes`, so an option with neither is legal at the top level and inside any
+container.
 
 Renovate ships no per-option version history — no `since`, no changelog in the
 package — so neither `rcd docs` nor `get_option_docs` can tell you when an

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getOptions } from "./renovate-adapter";
+import { getAllowedParents, getOptions } from "./renovate-adapter";
 import { getOptionIndex, optionsSourceUrl, REQUIRED_IF_NOTE } from "./option-docs";
 
 describe("option index", () => {
@@ -41,9 +41,9 @@ describe("option index", () => {
 });
 
 describe("placement", () => {
-  it("says 'anywhere' out loud when upstream declares no parents", () => {
+  it("says 'anywhere' out loud when upstream declares neither parents nor scopes", () => {
     const { options } = getOptionIndex();
-    expect(options.get("minimumReleaseAge")?.placement).toEqual({ kind: "unrestricted" });
+    expect(options.get("ignoreDeps")?.placement).toEqual({ kind: "unrestricted" });
     // `$schema` is hand-modeled, and Renovate's validator ignores it at every
     // nesting level — so it is unrestricted too, not "unknown".
     expect(options.get("$schema")?.placement).toEqual({ kind: "unrestricted" });
@@ -60,6 +60,20 @@ describe("placement", () => {
     expect(matchSourceUrls?.patternMatch).toBe(true);
   });
 
+  it("expands upstream's scopes into the parents they cover", () => {
+    const { options } = getOptionIndex();
+    const placement = options.get("minimumReleaseAge")?.placement;
+    if (placement?.kind !== "restricted") {
+      throw new Error("expected a restricted placement");
+    }
+    expect(placement.topLevel).toBe(true);
+    expect(placement.parents).toEqual(
+      expect.arrayContaining(["packageRules", "vulnerabilityAlerts", "npm", "major"]),
+    );
+    // lookup-scoped: a group's config is merged in after lookup, so `group` is not a parent
+    expect(placement.parents).not.toContain("group");
+  });
+
   it("lifts upstream's '.' out of the parent list into topLevel", () => {
     const { options } = getOptionIndex();
     const placement = options.get("enabled")?.placement;
@@ -72,7 +86,8 @@ describe("placement", () => {
     expect(placement.parents).toContain("packageRules");
     // exactly upstream's list minus the one "." entry, counted from upstream
     // rather than pinned: a bump that adds a manager grows this list.
-    const upstreamParents = getOptions().find((option) => option.name === "enabled")?.parents ?? [];
+    const enabled = getOptions().find((option) => option.name === "enabled");
+    const upstreamParents = (enabled && getAllowedParents(enabled)) ?? [];
     expect(upstreamParents).toContain(".");
     expect(placement.parents).toHaveLength(upstreamParents.length - 1);
   });
@@ -87,15 +102,16 @@ describe("containers", () => {
     // The honesty invariant: `childOptions` is the RESTRICTED set, not
     // "everything legal here" — an unrestricted option may appear inside a
     // container without ever naming it.
-    expect(packageRules?.childOptions).not.toContain("minimumReleaseAge");
-    expect(options.get("minimumReleaseAge")?.placement.kind).toBe("unrestricted");
+    expect(packageRules?.childOptions).not.toContain("ignoreDeps");
+    expect(options.get("ignoreDeps")?.placement.kind).toBe("unrestricted");
   });
 
   it("marks a container only because something named it", () => {
     const { options } = getOptionIndex();
-    // `minor` carries no upstream container marker; `enabled` declaring
-    // `parents: ["minor"]` is the whole of the evidence.
-    expect(options.get("minor")?.childOptions).toEqual(["enabled"]);
+    // neither carries an upstream container marker: `parents` names
+    // `logLevelRemap`, and the `updateType` scope names `minor`.
+    expect(options.get("logLevelRemap")?.childOptions).toEqual(["matchMessage", "newLogLevel"]);
+    expect(options.get("minor")?.childOptions).toContain("enabled");
     expect(options.get("constraints")?.isContainer).toBeUndefined();
   });
 });
@@ -154,7 +170,8 @@ describe("invariants over the whole option table", () => {
     expect(options.size).toBe(upstream.size + 1); // + the hand-modeled $schema
 
     for (const doc of options.values()) {
-      const declaresParents = Boolean(upstream.get(doc.name)?.parents);
+      const option = upstream.get(doc.name);
+      const declaresParents = Boolean(option && getAllowedParents(option));
       expect(doc.placement.kind, doc.name).toBe(declaresParents ? "restricted" : "unrestricted");
       // The parents list, or an empty one when the option is unrestricted —
       // so the "no dotted paths" claim is asserted for every option rather
