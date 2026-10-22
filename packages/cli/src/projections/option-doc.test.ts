@@ -25,7 +25,7 @@ const FLAG_LINES: readonly {
   { flag: (d) => d.supportsTemplating, contains: "templating: supported" },
   { flag: (d) => d.allowNegative, contains: "negative integers: allowed" },
   { flag: (d) => d.allowString, contains: "string shorthand:" },
-  { flag: (d) => d.freeChoice, contains: "children not validated" },
+  { flag: (d) => d.freeChoice, contains: "children skip Renovate's generic validation" },
   { flag: (d) => d.mergeable, contains: "mergeable:" },
   { flag: (d) => d.inheritConfigSupport, contains: "inheritable:" },
   { flag: (d) => d.requiredIf, contains: "required when:" },

@@ -96,8 +96,8 @@ export interface OptionDoc {
   inheritConfigSupport?: true;
   /** A bare string is massaged into a one-element array (`config/massage.js`). */
   allowString?: true;
-  /** Children of this option are NOT validated (upstream `freeChoice`), which
-   *  is why a typo inside it is never flagged. */
+  /** Children skip the generic recursive validation (upstream `freeChoice`);
+   *  some options still have dedicated checks. */
   freeChoice?: true;
   /** Upstream's `format` constraint on a string (or string-array) option. */
   format?: "regex";
