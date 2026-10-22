@@ -81,7 +81,9 @@ export function optionDocLines(doc: OptionDoc, renovateVersion: string): string[
       ? ["string shorthand: a bare string is massaged into a one-element array"]
       : []),
     ...(doc.freeChoice
-      ? ["children not validated (freeChoice) — a typo inside is never flagged"]
+      ? [
+          "children skip Renovate's generic validation (freeChoice); some options have dedicated checks",
+        ]
       : []),
     ...(doc.mergeable ? ["mergeable: preset and repo values merge rather than replace"] : []),
     ...(doc.inheritConfigSupport ? ["inheritable: settable in the inherited config"] : []),
