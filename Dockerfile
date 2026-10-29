@@ -85,7 +85,7 @@ CMD ["node", "server.mjs"]
 # --- app (default target) ----------------------------------------------------
 # LAST stage on purpose: a bare `docker build .` must produce the app, because
 # Docker builds the final stage when no --target is given.
-FROM nginx:alpine@sha256:a3554c0d0b48177b1413c26e01f695334428020d9df01243fbae3e11cfd17417 AS app
+FROM nginx:alpine@sha256:785835ea65db4bba6f021acc0f3be91b0fef76a53fe41f8588c6698d2aed0606 AS app
 
 COPY docker/nginx.conf /etc/nginx/conf.d/default.conf
 COPY docker/40-rcd-config.sh /docker-entrypoint.d/40-rcd-config.sh
