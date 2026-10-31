@@ -71,6 +71,7 @@
     "Show only the Age and Confidence Merge Confidence badges for pull requests.",
     "Apply crowd-sourced package replacement rules.",
     "Apply crowd-sourced workarounds for known problems with packages.",
+    "Update vulnerable PHP runtime pins for CVE-2026-109618 and CVE-2026-109619.",
     "Ensure that every dependency pinned by digest and sourced from Forgejo contains a link to the commit-to-commit diff",
     "Ensure that every dependency pinned by digest and sourced from Gitea contains a link to the commit-to-commit diff",
     "Ensure that every dependency pinned by digest and sourced from GitHub.com and Github enterprise contains a link to the commit-to-commit diff",
@@ -105,7 +106,7 @@
   "customDatasources": {},
   "dockerChildPrefix": "renovate_",
   "dockerCliOptions": null,
-  "dockerSidecarImage": "ghcr.io/renovatebot/base-image:13.134.1",
+  "dockerSidecarImage": "ghcr.io/renovatebot/base-image:13.145.4",
   "dockerUser": "12021",
   "composerIgnorePlatformReqs": [],
   "goGetDirs": [
@@ -10568,6 +10569,78 @@
       ]
     },
     {
+      "allowedVersions": "!/^19\\.(0614|0110)$/",
+      "matchPackageNames": [
+        "norwoodj/helm-docs"
+      ]
+    },
+    {
+      "enabled": false,
+      "matchDepTypes": [
+        "php2shell-runtime"
+      ],
+      "matchManagers": [
+        "custom.regex",
+        "custom.jsonata"
+      ]
+    },
+    {
+      "enabled": true,
+      "matchDepTypes": [
+        "php2shell-runtime"
+      ],
+      "matchJsonata": [
+        "(\n  $value := (manager = \"mise\" and isLockfileOnly) ? lockedVersion : currentValue;\n  $version := datasource = \"docker\" ? $split($value, \"-\")[0] : $value;\n  $parts := $match($version, /^(8\\.[2-5])\\.(\\d+)$/).groups;\n\n  $not(vulnerabilityAlerts.enabled = false) and $exists($parts)\n    and $number($parts[1]) < $lookup({\"8.2\":35,\"8.3\":36,\"8.4\":27,\"8.5\":12}, $parts[0])\n)"
+      ],
+      "matchManagers": [
+        "custom.regex",
+        "custom.jsonata"
+      ]
+    },
+    {
+      "isVulnerabilityAlert": true,
+      "matchJsonata": [
+        "(\n  $value := (manager = \"mise\" and isLockfileOnly) ? lockedVersion : currentValue;\n  $version := datasource = \"docker\" ? $split($value, \"-\")[0] : $value;\n  $parts := $match($version, /^(8\\.[2-5])\\.(\\d+)$/).groups;\n\n  $not(vulnerabilityAlerts.enabled = false) and $exists($parts)\n    and $number($parts[1]) < $lookup({\"8.2\":35,\"8.3\":36,\"8.4\":27,\"8.5\":12}, $parts[0])\n) and (\n      $version := datasource = \"docker\" ? $split(newVersion, \"-\")[0] : newVersion;\n      $parts := $match($version, /^(8\\.[2-5])\\.(\\d+)$/).groups;\n\n      $exists($parts) and $number($parts[1]) >= $lookup({\"8.2\":35,\"8.3\":36,\"8.4\":27,\"8.5\":12}, $parts[0])\n    )"
+      ],
+      "matchUpdateTypes": [
+        "patch",
+        "minor",
+        "major"
+      ],
+      "prBodyNotes": [
+        "> ⚠️ PHP2Shell vulnerabilities can allow remote code execution. This PR updates affected PHP versions to patched releases. Rebuild affected images, deploy the updates, and restart PHP workers.\n>\n> Details: [CVE-2026-109618](https://github.com/php/php-src/security/advisories/GHSA-w8hw-w9fx-j79w) and [CVE-2026-109619](https://github.com/php/php-src/security/advisories/GHSA-6wmf-4rv5-p3rp)."
+      ],
+      "schedule": [],
+      "matchDatasources": [
+        "github-tags"
+      ],
+      "matchPackageNames": [
+        "containerbase/php-prebuild",
+        "php/php-src"
+      ]
+    },
+    {
+      "isVulnerabilityAlert": true,
+      "matchJsonata": [
+        "(\n  $value := (manager = \"mise\" and isLockfileOnly) ? lockedVersion : currentValue;\n  $version := datasource = \"docker\" ? $split($value, \"-\")[0] : $value;\n  $parts := $match($version, /^(8\\.[2-5])\\.(\\d+)$/).groups;\n\n  $not(vulnerabilityAlerts.enabled = false) and $exists($parts)\n    and $number($parts[1]) < $lookup({\"8.2\":35,\"8.3\":36,\"8.4\":27,\"8.5\":12}, $parts[0])\n) and (\n      $version := datasource = \"docker\" ? $split(newVersion, \"-\")[0] : newVersion;\n      $parts := $match($version, /^(8\\.[2-5])\\.(\\d+)$/).groups;\n\n      $exists($parts) and $number($parts[1]) >= $lookup({\"8.2\":35,\"8.3\":36,\"8.4\":27,\"8.5\":12}, $parts[0])\n    )"
+      ],
+      "matchUpdateTypes": [
+        "patch",
+        "minor",
+        "major"
+      ],
+      "prBodyNotes": [
+        "> ⚠️ PHP2Shell vulnerabilities can allow remote code execution. This PR updates affected PHP versions to patched releases. Rebuild affected images, deploy the updates, and restart PHP workers.\n>\n> Details: [CVE-2026-109618](https://github.com/php/php-src/security/advisories/GHSA-w8hw-w9fx-j79w) and [CVE-2026-109619](https://github.com/php/php-src/security/advisories/GHSA-6wmf-4rv5-p3rp)."
+      ],
+      "schedule": [],
+      "matchDatasources": [
+        "docker"
+      ],
+      "matchPackageNames": [
+        "/^(?:(?:docker\\.io|index\\.docker\\.io)\\/)?(?:library\\/)?php$/"
+      ]
+    },
+    {
       "changelogUrl": "{{sourceUrl}}/compare/{{currentDigest}}..{{newDigest}}",
       "matchDatasources": [
         "forgejo-releases",
@@ -10857,7 +10930,7 @@
   "additionalReviewers": [],
   "postUpdateOptions": [],
   "constraints": {
-    "ghActionsLock": "v0.2.0"
+    "ghActionsLock": "v0.4.0"
   },
   "hostRules": [],
   "cacheHardTtlMinutes": 10080,
@@ -10921,6 +10994,36 @@
       "matchStrings": [
         "\"(?<depName>@tsconfig/node(?<major>\\d+))\""
       ]
+    },
+    {
+      "customType": "regex",
+      "datasourceTemplate": "github-tags",
+      "depNameTemplate": "php",
+      "depTypeTemplate": "php2shell-runtime",
+      "extractVersionTemplate": "^php-(?<version>\\S+)",
+      "managerFilePatterns": [
+        "/(^|/)\\.php-version$/"
+      ],
+      "matchStrings": [
+        "^\\s*(?<currentValue>8\\.[2-5]\\.\\d+)\\s*$"
+      ],
+      "packageNameTemplate": "php/php-src"
+    },
+    {
+      "customType": "jsonata",
+      "datasourceTemplate": "github-tags",
+      "depNameTemplate": "php",
+      "depTypeTemplate": "php2shell-runtime",
+      "extractVersionTemplate": "^php-(?<version>\\S+)",
+      "fileFormat": "yaml",
+      "managerFilePatterns": [
+        "/(^|/)(workflow-templates|\\.(?:github|gitea|forgejo)/(?:workflows|actions))/.+\\.ya?ml$/",
+        "/(^|/)action\\.ya?ml$/"
+      ],
+      "matchStrings": [
+        "**[uses and $exists($match(uses, /^shivammathur\\/setup-php@/))].with.\"php-version\"[$type($) = \"string\" and $exists($match($, /^8\\.[2-5]\\.\\d+$/))].{\"currentValue\": $}"
+      ],
+      "packageNameTemplate": "php/php-src"
     }
   ],
   "fetchChangeLogs": "pr",
