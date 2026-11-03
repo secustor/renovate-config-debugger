@@ -29,6 +29,12 @@ export function renovateShims(): Plugin {
   const renovateRoot = path.dirname(require.resolve("renovate/package.json"));
   const renovateDist = path.join(renovateRoot, "dist");
   const shimDir = fileURLToPath(new URL(".", import.meta.url));
+  // shims/base-image.ts keeps upstream's tool table: the JSON is two packages
+  // deep from here under pnpm, so it is resolved the way Node would from renovate.
+  const baseImagePkg = createRequire(path.join(renovateRoot, "package.json")).resolve(
+    "@renovatebot/base-image/package.json",
+  );
+  const containerbaseTools = createRequire(baseImagePkg).resolve("@containerbase/base/tools.json");
 
   const shimMap = new Map<string, string>(
     Object.entries({
@@ -101,6 +107,10 @@ export function renovateShims(): Plugin {
     }
     if (source === "execa") {
       return path.join(shimDir, "execa.ts");
+    }
+    // Re-exports @containerbase/base, whose module scope needs createRequire + node:fs.
+    if (source === "@renovatebot/base-image") {
+      return path.join(shimDir, "base-image.ts");
     }
     return null;
   }
@@ -214,6 +224,9 @@ export function renovateShims(): Plugin {
         if (stub) {
           return stub;
         }
+      }
+      if (source === "@containerbase/base/tools.json") {
+        return containerbaseTools;
       }
       if (source.startsWith(".")) {
         if (!importer?.includes(renovateDist)) {

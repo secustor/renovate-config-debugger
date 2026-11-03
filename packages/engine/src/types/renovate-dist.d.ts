@@ -406,3 +406,10 @@ declare module "renovate/renovate-schema.json" {
   const schema: Record<string, unknown>;
   export default schema;
 }
+
+// Not renovate/dist, but reached the same way: a transitive dep the shim
+// plugin resolves by path for shims/base-image.ts (pnpm's strict layout hides
+// it from this package).
+declare module "@containerbase/base/tools.json" {
+  export const tools: Record<string, { parent?: string; minVersion?: string; type?: string }>;
+}

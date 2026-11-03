@@ -85,7 +85,8 @@ describe("optionDocLines", () => {
     expect(lines.length).toBeLessThanOrEqual(12);
     const placement = lines.find((line) => line.startsWith("placement:")) ?? "";
     expect(placement).toContain("the top level, or inside");
-    expect(placement).toContain("+121 more");
+    // the count grows with every manager upstream adds, so not pinned
+    expect(placement).toMatch(/\+1\d\d more/);
     expect(placement.length).toBeLessThan(220);
   });
 
