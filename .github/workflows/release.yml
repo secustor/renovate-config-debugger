@@ -48,9 +48,9 @@ concurrency:
 jobs:
   release:
     runs-on: ubuntu-latest
-    # 30 for the release itself, plus the preflight's 15-minute budget below —
+    # 30 for the release itself, plus the preflight's 30-minute budget below —
     # one budget, shared by both images.
-    timeout-minutes: 45
+    timeout-minutes: 60
     permissions:
       # The `v*` tag and the GitHub release. Nothing is committed back to
       # main — a release changes no tracked file (see release.config.mjs).
@@ -113,7 +113,8 @@ jobs:
       - name: Wait for CI's docker images of this commit
         if: ${{ !inputs.dry-run }}
         run: |
-          deadline=$(( SECONDS + 900 ))
+          # CI's runner queue plus its e2e job can exceed 25 minutes after a merge.
+          deadline=$(( SECONDS + 1800 ))
           for image in ghcr.io/secustor/renovate-config-debugger ghcr.io/secustor/renovate-config-debugger-oauth-proxy; do
             ref="${image}:sha-${GITHUB_SHA::7}"
             until docker buildx imagetools inspect "$ref" > /dev/null 2>&1; do
