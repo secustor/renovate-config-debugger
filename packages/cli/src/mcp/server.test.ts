@@ -1644,12 +1644,13 @@ describe("explain_message and get_option_docs", () => {
     // derives it, so the CLI and MCP cannot disagree about it.
     expect(doc.isContainer).toBe(true);
     expect(doc.childOptions).toContain("matchPackageNames");
-    expect(doc.placement.kind).toBe("unrestricted");
+    // upstream scopes it (repo, packageRule, manager, …), so it is restricted
+    expect(doc.placement.kind).toBe("restricted");
     await expect(call("get_option_docs", { name: "nopeNotAnOption" })).rejects.toThrow(/search/);
   });
 
   test("an option with no upstream parents says so instead of staying silent", async () => {
-    const doc = (await call("get_option_docs", { name: "ignoreDeps" })) as {
+    const doc = (await call("get_option_docs", { name: "description" })) as {
       placement: { kind: string };
       isContainer?: boolean;
     };

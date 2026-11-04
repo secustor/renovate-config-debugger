@@ -96,7 +96,11 @@ defined as `{}`, `renovate` excluded from prebundling while the CJS/UMD
 transitives that need ESM interop are included, and `node:path` aliased to
 `pathe` — plus what the npm-extraction graph (roadmap 087) touches at module
 scope: defines for `process.platform`, `arch`, `version` and `versions`, and
-`graceful-fs`, `node:util` and `node:os` answered with stubs.
+`graceful-fs`, `node:util` and `node:os` answered with stubs. The same bare-specifier
+hook answers `@renovatebot/base-image` (renovate's util/exec graph) with
+`shims/base-image.ts`: upstream's module scope `createRequire`s its own
+`package.json`, which no bundle can satisfy, while the tool table validation
+needs stays upstream's `tools.json`.
 
 The app's `vite.config.ts` copies the same **mechanism** for
 `codemirror-json-schema` (cutting a shiki highlighter and the YAML parser out of

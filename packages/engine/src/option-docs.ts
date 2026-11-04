@@ -27,10 +27,10 @@ export interface OptionRequiredIf {
  * WHERE an option may appear — stated, never left to inference.
  *
  * Renovate's validator builds `optionParents` only from options that declare
- * `parents` or `scopes` (upstream `getAllowedParents`) and enforces nesting
- * only for those keys, so declaring neither is not missing data: it is
- * upstream saying the option is legal at the top level AND inside any
- * container object. Making this field required is what stops a renderer
+ * `parents` or `scopes` (upstream `getAllowedParents`) other than the `any`
+ * scope, and enforces nesting only for those keys, so declaring neither (or
+ * `any`) is not missing data: it is upstream saying the option is legal at the
+ * top level AND inside any container object. Making this field required is what stops a renderer
  * silently printing nothing and letting the reader guess.
  */
 export type OptionPlacement =
@@ -40,8 +40,8 @@ export type OptionPlacement =
    * placement fact, not the name of a parent option.
    */
   | { readonly kind: "restricted"; readonly parents: readonly string[]; readonly topLevel: boolean }
-  /** Upstream declares neither — see above; this is a statement about
-   *  upstream's code, not an assumption. */
+  /** Upstream declares neither, or the `any` scope — see above; this is a
+   *  statement about upstream's code, not an assumption. */
   | { readonly kind: "unrestricted" };
 
 /** UI-friendly view of one entry of renovate's option metadata. */
@@ -201,6 +201,16 @@ function flag(value: boolean | undefined): true | undefined {
   return value === true ? true : undefined;
 }
 
+/** Upstream's `any` scope is its spelling of "anywhere": its validator skips
+ *  the parent check for such an option, so here it is unrestricted too, not a
+ *  list of every container. */
+function allowedParentsOf(option: {
+  parents?: readonly string[];
+  scopes?: readonly string[];
+}): readonly string[] | undefined {
+  return option.scopes?.includes("any") ? undefined : getAllowedParents(option);
+}
+
 function placementOf(parents: readonly string[] | undefined): OptionPlacement {
   if (!parents) {
     return { kind: "unrestricted" };
@@ -241,7 +251,7 @@ export function getOptionIndex(): OptionIndex {
   options.set(SCHEMA_OPTION.name, SCHEMA_OPTION);
   const containers = new Map<string, string[]>();
   for (const option of getOptions()) {
-    const parents = getAllowedParents(option);
+    const parents = allowedParentsOf(option);
     const page = option.globalOnly ? "self-hosted-configuration" : "configuration-options";
     options.set(option.name, {
       name: option.name,

@@ -41,9 +41,10 @@ describe("option index", () => {
 });
 
 describe("placement", () => {
-  it("says 'anywhere' out loud when upstream declares neither parents nor scopes", () => {
+  it("says 'anywhere' out loud when upstream declares the `any` scope", () => {
     const { options } = getOptionIndex();
-    expect(options.get("ignoreDeps")?.placement).toEqual({ kind: "unrestricted" });
+    // upstream's validator skips the parent check for `scopes: ["any"]`
+    expect(options.get("description")?.placement).toEqual({ kind: "unrestricted" });
     // `$schema` is hand-modeled, and Renovate's validator ignores it at every
     // nesting level — so it is unrestricted too, not "unknown".
     expect(options.get("$schema")?.placement).toEqual({ kind: "unrestricted" });
@@ -102,8 +103,8 @@ describe("containers", () => {
     // The honesty invariant: `childOptions` is the RESTRICTED set, not
     // "everything legal here" — an unrestricted option may appear inside a
     // container without ever naming it.
-    expect(packageRules?.childOptions).not.toContain("ignoreDeps");
-    expect(options.get("ignoreDeps")?.placement.kind).toBe("unrestricted");
+    expect(packageRules?.childOptions).not.toContain("description");
+    expect(options.get("description")?.placement.kind).toBe("unrestricted");
   });
 
   it("marks a container only because something named it", () => {
@@ -171,8 +172,11 @@ describe("invariants over the whole option table", () => {
 
     for (const doc of options.values()) {
       const option = upstream.get(doc.name);
-      const declaresParents = Boolean(option && getAllowedParents(option));
-      expect(doc.placement.kind, doc.name).toBe(declaresParents ? "restricted" : "unrestricted");
+      // the `any` scope is upstream's "anywhere" — its validator skips it too
+      const restricted = Boolean(
+        option && getAllowedParents(option) && !option.scopes?.includes("any"),
+      );
+      expect(doc.placement.kind, doc.name).toBe(restricted ? "restricted" : "unrestricted");
       // The parents list, or an empty one when the option is unrestricted —
       // so the "no dotted paths" claim is asserted for every option rather
       // than only for the ones that reach inside an `if`.

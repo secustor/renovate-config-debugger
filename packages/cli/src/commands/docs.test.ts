@@ -21,11 +21,12 @@ describe("docs", () => {
     expect(doc.optionsSourceUrl).toContain(`renovate/v/${doc.renovateVersion}`);
     expect(doc.isContainer).toBe(true);
     expect(doc.childOptions).toContain("matchPackageNames");
-    expect(doc.placement.kind).toBe("unrestricted");
+    // upstream scopes it (repo, packageRule, manager, …), so it is restricted
+    expect(doc.placement.kind).toBe("restricted");
   });
 
   test("pretty output names the version and says where the option may go", async () => {
-    const run = await runCli(["docs", "ignoreDeps"]);
+    const run = await runCli(["docs", "description"]);
     expect(run.code).toBe(0);
     expect(run.stdout).toContain("— Renovate ");
     expect(run.stdout).toContain("placement: no restriction");
