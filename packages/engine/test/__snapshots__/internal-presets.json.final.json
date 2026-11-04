@@ -10130,6 +10130,17 @@
       "replacementVersion": "2.0.0"
     },
     {
+      "matchCurrentVersion": ">=5.0.1",
+      "matchDatasources": [
+        "maven"
+      ],
+      "matchPackageNames": [
+        "net.sf.ucanaccess:ucanaccess"
+      ],
+      "replacementName": "io.github.spannm:ucanaccess",
+      "replacementVersion": "5.1.0"
+    },
+    {
       "matchCurrentVersion": ">=0.32.0",
       "matchDatasources": [
         "npm"
