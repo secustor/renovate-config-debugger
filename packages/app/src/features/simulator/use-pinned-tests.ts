@@ -66,7 +66,7 @@ export function usePinnedTests({
 
   useEffect(() => {
     const finalConfig = result.finalConfig;
-    let cancelled = false;
+    const run = { cancelled: false };
     // Snapshot taken before the first await: everything committed for THIS
     // result is done, and anything else has to be (re-)evaluated. A second
     // effect run that overlaps this one can only ever redo a pin whose result
@@ -80,7 +80,7 @@ export function usePinnedTests({
     }
     void (async () => {
       for (const pin of pins) {
-        if (cancelled) {
+        if (run.cancelled) {
           return;
         }
         if (known[pin.id]) {
@@ -100,18 +100,18 @@ export function usePinnedTests({
             error: errorMessage(err),
           };
         }
-        if (cancelled) {
+        if (run.cancelled) {
           return;
         }
         // Belt to the read guard's braces below (`state.result === result`): the
-        // `cancelled` check above already keeps an abandoned run from writing here.
+        // `run.cancelled` check above already keeps an abandoned run from writing here.
         setState((prev) =>
           prev.result === result ? { result, byId: { ...prev.byId, [pin.id]: evaluation } } : prev,
         );
       }
     })();
     return () => {
-      cancelled = true;
+      run.cancelled = true;
     };
   }, [result, pins]);
 
