@@ -23,7 +23,7 @@
     "knip": "6.44.1",
     "oxfmt": "0.75.0",
     "oxlint": "1.90.0",
-    "oxlint-tsgolint": "7.0.2005",
+    "oxlint-tsgolint": "7.0.2006",
     "semantic-release": "25.0.9",
     "stylelint": "17.16.0",
     "stylelint-declaration-strict-value": "1.12.1",
