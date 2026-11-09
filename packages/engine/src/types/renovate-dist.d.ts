@@ -287,7 +287,10 @@ declare module "renovate/dist/manager-default-configs.generated.js" {
    *  transitively via loadManagerOptions(). */
   export const managerDefaultConfigs: Record<
     string,
-    { managerFilePatterns?: string[]; enabled?: boolean }
+    {
+      displayName: string;
+      defaultConfig: { managerFilePatterns?: string[]; enabled?: boolean };
+    }
   >;
 }
 
