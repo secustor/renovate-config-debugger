@@ -592,8 +592,8 @@ packages:
       zod:
         optional: true
 
-  '@containerbase/base@14.66.7':
-    resolution: {integrity: sha512-ut/S9ILRKwEuGdFyPJf/AxMiReRl4IJhpEuxpdKNHubfSrvG+bCsnid+xUgfK9T68jNgn6JUKs5wXm5z+AfjAg==}
+  '@containerbase/base@14.66.10':
+    resolution: {integrity: sha512-AuYc/OsEmrZext6Cw/N3HgZwgzHZ57mfZxLNFzW/2q8uPfvYACJdJuRYU1Jf8qcu/FtKuXA+ExBJdLJK2I7n+A==}
     engines: {node: '>=24.10.0'}
     peerDependencies:
       zod: ^4.0.0
@@ -6398,7 +6398,7 @@ snapshots:
     optionalDependencies:
       zod: 4.6.7
 
-  '@containerbase/base@14.66.7(zod@4.6.7)':
+  '@containerbase/base@14.66.10(zod@4.6.7)':
     dependencies:
       semver: 7.8.5
     optionalDependencies:
@@ -7385,7 +7385,7 @@ snapshots:
 
   '@renovatebot/osv-offline-db@4.5.7(supports-color@10.2.2)(zod@4.6.7)':
     dependencies:
-      '@containerbase/base': 14.66.7(zod@4.6.7)
+      '@containerbase/base': 14.66.10(zod@4.6.7)
       debug: 4.4.3(supports-color@10.2.2)
     transitivePeerDependencies:
       - supports-color
