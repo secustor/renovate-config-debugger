@@ -448,6 +448,9 @@ test("the simulate button holds its position when the validation banner clears",
   await runAndAwaitResult(page);
 
   await openSimulator(page);
+  // openSimulator's clicks scroll the column by a Playwright-version-dependent
+  // amount; from the top, a re-run's scroll clamp can't pose as a banner shift.
+  await page.locator(".results-col").evaluate((el) => el.scrollTo(0, 0));
   const panel = page.locator("#panel-tests");
   // Roadmap 075: the banner is the shell's run-level one now — same guarantee,
   // one level up, and the reserved box moved with it.
