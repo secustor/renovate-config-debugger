@@ -70,6 +70,8 @@ const CLASS_EXPLANATIONS: Record<string, string> = {
   FileMatchMigration: "`fileMatch` is renamed to `managerFilePatterns`.",
   StabilityDaysMigration: "`stabilityDays` is replaced by `minimumReleaseAge`.",
   ExtendsMigration: "`extends` preset names are normalized to their current form.",
+  ConstraintsMigration:
+    "npm-style comparators (`^`, `~`, `=`) in `constraints.erlang` are rewritten to explicit ranges.",
   // Synthetic post-processing blocks emitted by the forked migrateConfig.
   LanguagePackageRules:
     "A top-level language block (docker, python, …) is promoted into a `matchCategories` packageRule.",

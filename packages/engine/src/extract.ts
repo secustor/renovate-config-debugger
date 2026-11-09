@@ -122,7 +122,7 @@ export function matchManagersForFile(fileName: string): string[] {
   // concurrently active run's trace.
   return withCollectorSuppressed(() => {
     const matched: string[] = [];
-    for (const [manager, config] of Object.entries(managerDefaultConfigs)) {
+    for (const [manager, { defaultConfig: config }] of Object.entries(managerDefaultConfigs)) {
       const patterns = config.managerFilePatterns;
       if (!patterns || patterns.length === 0) {
         continue;
@@ -190,7 +190,7 @@ export function matchExtractableManagers(
     const blockClaims = new Map<string, number[]>();
     let managersConsidered = 0;
     let customManagersConsidered = 0;
-    for (const [manager, config] of Object.entries(managerDefaultConfigs)) {
+    for (const [manager, { defaultConfig: config }] of Object.entries(managerDefaultConfigs)) {
       if (!(manager in managerExtractors)) {
         continue;
       }

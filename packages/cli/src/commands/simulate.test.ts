@@ -58,7 +58,7 @@ describe("simulate", () => {
 /**
  * Roadmap 070: `--format json` used to spread the whole `SimulationResult` —
  * 106 kB for this fixture, 74% of it the merge trace nobody asked for, and a
- * `finalDependencyConfig` carrying 110 globalOnly options no packageRule can
+ * `finalDependencyConfig` carrying 111 globalOnly options no packageRule can
  * read. It now answers at the same `detail` the MCP `simulate` tool does,
  * through the same projection.
  */
@@ -102,7 +102,7 @@ describe("simulate --detail / --keys / --config-scope", () => {
     const config = payload.finalDependencyConfig as Record<string, unknown>;
     expect(payload.configView).toMatchObject({
       scope: "package-rules",
-      droppedGlobalOnly: 110,
+      droppedGlobalOnly: 111,
     });
     expect(config).not.toHaveProperty("onboardingConfig");
     expect(config).toHaveProperty("groupName", "react monorepo");
