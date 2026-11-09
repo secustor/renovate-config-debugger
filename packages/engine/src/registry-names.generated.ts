@@ -1,7 +1,7 @@
 /**
  * GENERATED FILE — do not hand-edit.
  *
- * Produced by `scripts/generate-registry-names.mjs` from renovate@44.200.1's
+ * Produced by `scripts/generate-registry-names.mjs` from renovate@44.221.4's
  * own datasource/manager registries (`renovate/dist/modules/{datasource,manager}/api.js`).
  * Regenerate with `pnpm --filter @renovate-config-debugger/engine generate:registries`
  * after bumping the `renovate` dependency — see that script's header for why
@@ -67,6 +67,7 @@ export const DATASOURCE_NAMES: readonly string[] = [
   "java-version",
   "jenkins-plugins",
   "jsr",
+  "julia-general-metadata",
   "kubernetes-api",
   "maven",
   "nextcloud",
@@ -157,6 +158,7 @@ export const MANAGER_NAMES: readonly string[] = [
   "html",
   "jenkins",
   "jsonnet-bundler",
+  "julia",
   "kotlin-script",
   "kubernetes",
   "kustomize",

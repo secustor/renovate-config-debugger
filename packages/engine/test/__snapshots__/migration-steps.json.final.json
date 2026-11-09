@@ -88,7 +88,7 @@
   "customDatasources": {},
   "dockerChildPrefix": "renovate_",
   "dockerCliOptions": null,
-  "dockerSidecarImage": "ghcr.io/renovatebot/base-image:13.149.0",
+  "dockerSidecarImage": "ghcr.io/renovatebot/base-image:13.160.9",
   "dockerUser": "12021",
   "composerIgnorePlatformReqs": [],
   "goGetDirs": [
@@ -106,6 +106,7 @@
   "forkToken": null,
   "forkOrg": null,
   "githubTokenWarn": true,
+  "goEnvFromHostRules": false,
   "encryptedWarning": null,
   "inheritConfig": false,
   "inheritConfigRepoName": "{{parentOrg}}/renovate-config",
@@ -359,7 +360,7 @@
   "additionalReviewers": [],
   "postUpdateOptions": [],
   "constraints": {
-    "ghActionsLock": "v0.4.0"
+    "ghActionsLock": "v0.4.1"
   },
   "hostRules": [],
   "cacheHardTtlMinutes": 10080,
@@ -546,7 +547,7 @@
       }
     },
     "prBodyDefinitions": {
-      "Change": "[{{#if displayFrom}}`{{{displayFrom}}}` → {{else}}{{#if currentValue}}`{{{currentValue}}}` → {{/if}}{{/if}}{{#if displayTo}}`{{{displayTo}}}`{{else}}`{{{newValue}}}`{{/if}}]({{#if depName}}https://renovatebot.com/diffs/npm/{{replace '/' '%2f' depName}}/{{{currentVersion}}}/{{{newVersion}}}{{/if}})"
+      "Change": "[{{#if displayFrom}}`{{{displayFrom}}}` → {{else}}{{#if currentValue}}`{{{currentValue}}}` → {{/if}}{{/if}}{{#if displayTo}}`{{{displayTo}}}`{{else}}`{{{newValue}}}`{{/if}}]({{#if packageName}}https://renovatebot.com/diffs/npm/{{replace '/' '%2f' packageName}}/{{{currentVersion}}}/{{{newVersion}}}{{/if}})"
     }
   },
   "bun-version": {
@@ -831,6 +832,11 @@
     ],
     "datasource": "git-tags"
   },
+  "julia": {
+    "managerFilePatterns": [
+      "/(^|/)(Julia)?Project\\.toml$/"
+    ]
+  },
   "kotlin-script": {
     "managerFilePatterns": [
       "/^.+\\.main\\.kts$/"
@@ -877,10 +883,13 @@
   },
   "mise": {
     "managerFilePatterns": [
-      "**/{,.}mise{,.*}.toml",
-      "**/{,.}mise/config{,.*}.toml",
+      "**/.mise{,.*}.toml",
+      "**/mise{,.*}.toml",
+      "**/mise/config{,.*}.toml",
+      "**/.mise/config{,.*}.toml",
       "**/.config/mise{,.*}.toml",
-      "**/.config/mise/{mise,config}{,.*}.toml",
+      "**/.config/mise/mise{,.*}.toml",
+      "**/.config/mise/config{,.*}.toml",
       "**/.config/mise/conf.d/*.toml",
       "**/.rtx{,.*}.toml"
     ],
@@ -917,7 +926,7 @@
       }
     },
     "prBodyDefinitions": {
-      "Change": "[{{#if displayFrom}}`{{{displayFrom}}}` → {{else}}{{#if currentValue}}`{{{currentValue}}}` → {{/if}}{{/if}}{{#if displayTo}}`{{{displayTo}}}`{{else}}`{{{newValue}}}`{{/if}}]({{#if depName}}https://renovatebot.com/diffs/npm/{{replace '/' '%2f' depName}}/{{{currentVersion}}}/{{{newVersion}}}{{/if}})"
+      "Change": "[{{#if displayFrom}}`{{{displayFrom}}}` → {{else}}{{#if currentValue}}`{{{currentValue}}}` → {{/if}}{{/if}}{{#if displayTo}}`{{{displayTo}}}`{{else}}`{{{newValue}}}`{{/if}}]({{#if packageName}}https://renovatebot.com/diffs/npm/{{replace '/' '%2f' packageName}}/{{{currentVersion}}}/{{{newVersion}}}{{/if}})"
     }
   },
   "nuget": {
