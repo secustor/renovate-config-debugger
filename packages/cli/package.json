@@ -52,7 +52,7 @@
     "@renovate-config-debugger/app": "workspace:*",
     "@renovate-config-debugger/engine": "workspace:*",
     "@types/node": "26.6.6",
-    "commander": "15.0.0",
+    "commander": "15.1.0",
     "typescript": "7.0.2",
     "vite": "8.3.6",
     "vitest": "5.1.0",
