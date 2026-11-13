@@ -106,7 +106,7 @@
   "customDatasources": {},
   "dockerChildPrefix": "renovate_",
   "dockerCliOptions": null,
-  "dockerSidecarImage": "ghcr.io/renovatebot/base-image:13.163.1",
+  "dockerSidecarImage": "ghcr.io/renovatebot/base-image:13.163.2",
   "dockerUser": "12021",
   "composerIgnorePlatformReqs": [],
   "goGetDirs": [
@@ -9515,6 +9515,17 @@
       "replacementName": "motion"
     },
     {
+      "matchCurrentVersion": ">=3.0.0",
+      "matchDatasources": [
+        "npm"
+      ],
+      "matchPackageNames": [
+        "@fseehawer/react-circular-slider"
+      ],
+      "replacementName": "@fiojs/react-circular-slider",
+      "replacementVersion": "3.3.8"
+    },
+    {
       "matchDatasources": [
         "github-tags"
       ],
@@ -10407,6 +10418,7 @@
         "registry.access.redhat.com/rhel7**",
         "registry.access.redhat.com/rhel8/**",
         "registry.access.redhat.com/rhel9/**",
+        "registry.access.redhat.com/rhel10/**",
         "registry.access.redhat.com/rhscl/**",
         "registry.access.redhat.com/ubi*{,/}**",
         "redhat/**"
