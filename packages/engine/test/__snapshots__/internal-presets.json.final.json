@@ -106,7 +106,7 @@
   "customDatasources": {},
   "dockerChildPrefix": "renovate_",
   "dockerCliOptions": null,
-  "dockerSidecarImage": "ghcr.io/renovatebot/base-image:13.163.2",
+  "dockerSidecarImage": "ghcr.io/renovatebot/base-image:13.163.7",
   "dockerUser": "12021",
   "composerIgnorePlatformReqs": [],
   "goGetDirs": [
@@ -8693,6 +8693,16 @@
       "replacementVersion": "1.0.0"
     },
     {
+      "matchDatasources": [
+        "npm"
+      ],
+      "matchPackageNames": [
+        "clang-format"
+      ],
+      "replacementName": "clang-format-node",
+      "replacementVersion": "2.0.0"
+    },
+    {
       "description": [
         "Replace `containerbase/(buildpack|base)` and `renovate/buildpack` with `ghcr.io/containerbase/base`."
       ],
@@ -8770,6 +8780,17 @@
         "/^(?:docker\\.io/)?renovate/renovate$/"
       ],
       "versioning": "semver"
+    },
+    {
+      "matchDatasources": [
+        "github-releases",
+        "github-tags"
+      ],
+      "matchPackageNames": [
+        "corentinmusard/otel-cicd-action"
+      ],
+      "replacementName": "dash0hq/otel-cicd-action",
+      "replacementVersion": "4.0.1"
     },
     {
       "matchDatasources": [
