@@ -327,8 +327,8 @@ importers:
         specifier: 2.0.3
         version: 2.0.3
       renovate:
-        specifier: 44.226.1
-        version: 44.226.1(supports-color@10.2.2)(typanion@3.14.0)
+        specifier: 44.227.4
+        version: 44.227.4(supports-color@10.2.2)(typanion@3.14.0)
     devDependencies:
       typescript:
         specifier: 7.0.2
@@ -583,8 +583,8 @@ packages:
     resolution: {integrity: sha512-ooWCrlZP11i8GImSjTHYHLkvFDP48nS4+204nGb1RiX/WXYHmJA2III9/e2DWVabCESdW7hBAEzHRqUn9OUVvQ==}
     engines: {node: '>=0.1.90'}
 
-  '@containerbase/base@14.66.14':
-    resolution: {integrity: sha512-ukyoTYn0rNoNBqKS8A70uCJBukfgtkvUqjIT2qs9ncZja9tZThFy6m023YfLJtqU/QzCOd+PrFEPB52DuIkpBw==}
+  '@containerbase/base@14.66.16':
+    resolution: {integrity: sha512-90xFit8D4PnfOll2GrE5O9v4bhZvlRm6C5Q/kq0yXrTq4LJ4l8+rqODA0i3cUMq2KXC73dVR72UBkkkJ25gxHQ==}
     engines: {node: '>=24.10.0'}
     peerDependencies:
       zod: ^4.0.0
@@ -1921,8 +1921,8 @@ packages:
       '@opentelemetry/api':
         optional: true
 
-  '@renovatebot/base-image@13.163.2':
-    resolution: {integrity: sha512-GKNZSURR9Uqya0L/qcWH6uyrc4nbpbRJWowVpZq8prGHCPYxks57TAHk2aEqCHyaIJYCkYbd10iJIaF3VgZ0pg==}
+  '@renovatebot/base-image@13.163.7':
+    resolution: {integrity: sha512-L8f/L6m+THcdHXSGvcDP/P/FTw4+ZSqj0SXjW/uvahUUckuNAfepdAUlBPjdxEP4UBwE85jQxoOOY1pjRVYrlA==}
     engines: {node: '>=24.10.0'}
     peerDependencies:
       zod: ^4.0.0
@@ -3497,8 +3497,8 @@ packages:
     resolution: {integrity: sha512-DpLKbNU4WylpxJykQujfCcwYWiV/Jhm50Goo0wrVILAv5jOr9d+H+UR3PhSCD2rCCEIg0uc+G+muBTwD54JhDQ==}
     engines: {node: '>= 0.4'}
 
-  google-auth-library@11.3.2:
-    resolution: {integrity: sha512-rbm+5boOZzFvDFg2tvCGkgHtG+RrmDqCDi6voK+ILpoCDqGxxc5pcMH6WZzCQXGNqQqZcYJl5WNvb159rkriuA==}
+  google-auth-library@11.3.3:
+    resolution: {integrity: sha512-VxjQ5+zHeR4RcRi001qnT/6KRKy2CIjQ5I7/wFErvRqr0+setlRqjDOAzvjzWEzyvsWswZE6WMQJtS8OpeTqAQ==}
     engines: {node: '>=22'}
 
   google-logging-utils@1.1.3:
@@ -4159,8 +4159,8 @@ packages:
     resolution: {integrity: sha512-+Az7Ojz3iRGu8KYMvJ6xVhvrxP3eE+vEtJX75Ow88XBpcQNV/0lGX5ZynIIBftREo4DC2jsveAMDaeltmm8QvQ==}
     hasBin: true
 
-  markdown-table@3.0.4:
-    resolution: {integrity: sha512-wiYz4+JrLyb/DqW2hkFJxP7Vd7JuTDm77fvbM8VfEQdmSMqcImWeeRbHwZjBjIFki/VaMK2BhFi7oUUZeM5bqw==}
+  markdown-table@3.1.0:
+    resolution: {integrity: sha512-xpeSCdM+B+6P3ncfgaB7FoDbtJ30xAe6Z18TGT7AgXJsHqCElCICZovQqdRMm7kHgpTyYv36EupqewoFFSB8vw==}
 
   marked-terminal@7.3.1:
     resolution: {integrity: sha512-B1eKs5mRiacjHHMlex1zn0zkVomz2/KWjD/dyA8WRQTXk2d15OzVjiK/iuPfvDFB27Gvr8p/u6MYgU0NY/O45w==}
@@ -5048,8 +5048,8 @@ packages:
   remark@15.0.1:
     resolution: {integrity: sha512-Eht5w30ruCXgFmxVUSlNWQ9iiimq07URKeFS3hNc8cUWy1llX4KDWfyEDZRycMc+znsN9Ux5/tJ/BFdgdOwA3A==}
 
-  renovate@44.226.1:
-    resolution: {integrity: sha512-hg/izHecVvf9rEKa94eYNzUsLuvdjDoFKGyzgZ32+joUyH0R/jv1Rhezg5PSkgIyl+xZVj7NolM4N7YdPTOeUg==}
+  renovate@44.227.4:
+    resolution: {integrity: sha512-+62GEWYQzXo/FEoGVBkDyZts25B1F9PlwaEiEe+eK71JS6i5A2zaEgEHavUNTn2wFYdP1zrPsyJAeyHm7UyGCA==}
     engines: {node: ^24.11.0 || ^26.13.0, pnpm: ^11.0.0}
     hasBin: true
 
@@ -5173,11 +5173,6 @@ packages:
 
   semver@6.3.2:
     resolution: {integrity: sha512-GYrCADwpu6yV5OAvchkQ27Z5wwMxWAEMg5NNWjyHh/5DboFFqbdbvYNIvZouQpxXyeMPoTOh0vdPYKlf0ZswdQ==}
-    hasBin: true
-
-  semver@7.8.5:
-    resolution: {integrity: sha512-Y7/KDsb8LjooZpwaqGyulO6DQlksgCncchHGk+sZIY4SBvUocMBEFH5Ur1fI4dV+Jvl0w6cjvucaIi40puRioA==}
-    engines: {node: '>=10'}
     hasBin: true
 
   semver@7.8.6:
@@ -6412,9 +6407,9 @@ snapshots:
   '@colors/colors@1.5.0':
     optional: true
 
-  '@containerbase/base@14.66.14(zod@4.6.7)':
+  '@containerbase/base@14.66.16(zod@4.6.7)':
     dependencies:
-      semver: 7.8.5
+      semver: 7.8.6
     optionalDependencies:
       zod: 4.6.7
 
@@ -6798,7 +6793,7 @@ snapshots:
 
   '@npmcli/fs@5.0.0':
     dependencies:
-      semver: 7.8.5
+      semver: 7.8.6
 
   '@octokit/auth-token@6.0.0': {}
 
@@ -7398,9 +7393,9 @@ snapshots:
     optionalDependencies:
       '@opentelemetry/api': 1.10.0
 
-  '@renovatebot/base-image@13.163.2(zod@4.6.7)':
+  '@renovatebot/base-image@13.163.7(zod@4.6.7)':
     dependencies:
-      '@containerbase/base': 14.66.14(zod@4.6.7)
+      '@containerbase/base': 14.66.16(zod@4.6.7)
     optionalDependencies:
       zod: 4.6.7
 
@@ -7420,7 +7415,7 @@ snapshots:
 
   '@renovatebot/osv-offline-db@4.5.10(supports-color@10.2.2)(zod@4.6.7)':
     dependencies:
-      '@containerbase/base': 14.66.14(zod@4.6.7)
+      '@containerbase/base': 14.66.16(zod@4.6.7)
       debug: 4.4.3(supports-color@10.2.2)
     transitivePeerDependencies:
       - supports-color
@@ -7941,7 +7936,7 @@ snapshots:
       hpagent: 1.2.0
       micromatch: 4.0.8
       p-limit: 2.3.0
-      semver: 7.8.5
+      semver: 7.8.6
       strip-ansi: 6.0.1
       tar: 7.5.22
       tinylogic: 2.0.0
@@ -8129,7 +8124,7 @@ snapshots:
 
   builtins@5.1.0:
     dependencies:
-      semver: 7.8.5
+      semver: 7.8.6
 
   bunyan@1.8.15:
     optionalDependencies:
@@ -8592,7 +8587,7 @@ snapshots:
       '@one-ini/wasm': 0.2.1
       commander: 14.0.3
       minimatch: 10.2.6
-      semver: 7.8.5
+      semver: 7.8.6
 
   email-addresses@5.0.0: {}
 
@@ -9091,7 +9086,7 @@ snapshots:
       es6-error: 4.1.1
       matcher: 3.0.0
       roarr: 2.15.4
-      semver: 7.8.5
+      semver: 7.8.6
       serialize-error: 7.0.1
 
   globalthis@1.0.4:
@@ -9099,7 +9094,7 @@ snapshots:
       define-properties: 1.2.1
       gopd: 1.2.0
 
-  google-auth-library@11.3.2(supports-color@10.2.2):
+  google-auth-library@11.3.3(supports-color@10.2.2):
     dependencies:
       base64-js: 1.5.1
       ecdsa-sig-formatter: 1.0.11
@@ -9778,7 +9773,7 @@ snapshots:
       punycode.js: 2.3.1
       uc.micro: 3.0.0
 
-  markdown-table@3.0.4: {}
+  markdown-table@3.1.0: {}
 
   marked-terminal@7.3.1(marked@15.0.12):
     dependencies:
@@ -9853,7 +9848,7 @@ snapshots:
     dependencies:
       '@types/mdast': 4.0.4
       devlop: 1.1.0
-      markdown-table: 3.0.4
+      markdown-table: 3.1.0
       mdast-util-from-markdown: 2.1.0(supports-color@10.2.2)
       mdast-util-to-markdown: 2.2.3
       mdast-util-to-string: 4.0.0
@@ -10261,7 +10256,7 @@ snapshots:
       graceful-fs: 4.2.11
       nopt: 10.0.1
       proc-log: 7.0.0
-      semver: 7.8.5
+      semver: 7.8.6
       tar: 7.5.22
       tinyglobby: 0.2.17
       undici: 8.12.4
@@ -10875,7 +10870,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  renovate@44.226.1(supports-color@10.2.2)(typanion@3.14.0):
+  renovate@44.227.4(supports-color@10.2.2)(typanion@3.14.0):
     dependencies:
       '@aws-sdk/client-codecommit': 3.1139.0
       '@aws-sdk/client-ec2': 3.1139.0
@@ -10908,7 +10903,7 @@ snapshots:
       '@pnpm/parse-overrides': 1001.0.4
       '@qnighy/marshal': 0.1.3
       '@redis/client': 6.3.1(@opentelemetry/api@1.10.0)
-      '@renovatebot/base-image': 13.163.2(zod@4.6.7)
+      '@renovatebot/base-image': 13.163.7(zod@4.6.7)
       '@renovatebot/detect-tools': 5.0.0
       '@renovatebot/good-enough-parser': 4.0.3
       '@renovatebot/osv-offline': 4.5.10(supports-color@10.2.2)(zod@4.6.7)
@@ -10949,7 +10944,7 @@ snapshots:
       github-url-from-git: 1.5.0
       glob: 13.0.6
       global-agent: 3.0.0
-      google-auth-library: 11.3.2(supports-color@10.2.2)
+      google-auth-library: 11.3.3(supports-color@10.2.2)
       got: 16.2.0
       graph-data-structure: 4.5.0
       handlebars: 4.7.10
@@ -10963,7 +10958,7 @@ snapshots:
       klona: 2.0.6
       luxon: 3.7.2
       markdown-it: 15.0.3
-      markdown-table: 3.0.4
+      markdown-table: 3.1.0
       minimatch: 10.2.6
       moo: 0.5.3
       ms: 2.1.3
@@ -10982,7 +10977,7 @@ snapshots:
       remark-github: 12.0.0
       safe-stable-stringify: 2.5.0
       sax: 1.6.1
-      semver: 7.8.5
+      semver: 7.8.6
       semver-stable: 3.0.0
       semver-utils: 1.1.4
       shlex: 3.0.0
@@ -11170,8 +11165,6 @@ snapshots:
   semver-utils@1.1.4: {}
 
   semver@6.3.2: {}
-
-  semver@7.8.5: {}
 
   semver@7.8.6: {}
 
