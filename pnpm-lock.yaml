@@ -197,8 +197,8 @@ importers:
         specifier: 18.0.0
         version: 18.0.0
       stylelint-declaration-strict-value:
-        specifier: 1.12.1
-        version: 1.12.1(stylelint@18.0.0)
+        specifier: 1.13.0
+        version: 1.13.0(stylelint@18.0.0)
       stylelint-value-no-unknown-custom-properties:
         specifier: 6.1.1
         version: 6.1.1(stylelint@18.0.0)
@@ -5398,11 +5398,11 @@ packages:
   style-mod@4.1.4:
     resolution: {integrity: sha512-XXWIQt633/EpAFx8aZDOTjBzrCaGmhvEQlQo6MVPfa2OzO2cWo+4hV9h+6UkHYlXGfy+ODXKUdP7Pthmcu5ATw==}
 
-  stylelint-declaration-strict-value@1.12.1:
-    resolution: {integrity: sha512-KSQTXfWboeebH0tw3bZq5ZPLnkUBHvz9PtzAmIaqU7egLvjN7wU/F0tukFBVyGDKQEfDlLNGDNvhI/O1+6KipQ==}
+  stylelint-declaration-strict-value@1.13.0:
+    resolution: {integrity: sha512-d6Wv4qA1j+IcubFy1BjktfOwfXWK4HphJNTnvqKoqD25OqDRpiU/jSAcdZD2tXKg5WBfbH5qq1+bbg4iFzfKow==}
     engines: {node: '>=20.19.0'}
     peerDependencies:
-      stylelint: '>=16 <=17'
+      stylelint: '>=16 <=18'
 
   stylelint-value-no-unknown-custom-properties@6.1.1:
     resolution: {integrity: sha512-eQ1zidKD5t9zMEaskjGUY4W47lH76qMlmsDSmCAPEwtaGzB4Ls7ORTfysC1D6hamp2zFC+vN1vpQ+GFz3Tw3lw==}
@@ -11448,7 +11448,7 @@ snapshots:
 
   style-mod@4.1.4: {}
 
-  stylelint-declaration-strict-value@1.12.1(stylelint@18.0.0):
+  stylelint-declaration-strict-value@1.13.0(stylelint@18.0.0):
     dependencies:
       regexp.escape: 2.0.1
       stylelint: 18.0.0
