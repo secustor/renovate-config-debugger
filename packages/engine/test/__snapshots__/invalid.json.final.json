@@ -88,7 +88,7 @@
   "customDatasources": {},
   "dockerChildPrefix": "renovate_",
   "dockerCliOptions": null,
-  "dockerSidecarImage": "ghcr.io/renovatebot/base-image:13.174.0",
+  "dockerSidecarImage": "ghcr.io/renovatebot/base-image:13.174.1",
   "dockerUser": "12021",
   "composerIgnorePlatformReqs": [],
   "goGetDirs": [
@@ -356,7 +356,7 @@
   "additionalReviewers": [],
   "postUpdateOptions": [],
   "constraints": {
-    "ghActionsLock": "v0.5.0"
+    "ghActionsLock": "v0.5.1"
   },
   "hostRules": [],
   "cacheHardTtlMinutes": 10080,
