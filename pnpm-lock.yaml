@@ -203,14 +203,14 @@ importers:
         specifier: 26.0.1
         version: 26.0.1(supports-color@10.2.2)
       stylelint:
-        specifier: 18.0.0
-        version: 18.0.0
+        specifier: 18.1.0
+        version: 18.1.0
       stylelint-declaration-strict-value:
         specifier: 1.13.0
-        version: 1.13.0(stylelint@18.0.0)
+        version: 1.13.0(stylelint@18.1.0)
       stylelint-value-no-unknown-custom-properties:
         specifier: 6.1.1
-        version: 6.1.1(stylelint@18.0.0)
+        version: 6.1.1(stylelint@18.1.0)
       typescript:
         specifier: 7.0.2
         version: 7.0.2
@@ -5476,8 +5476,8 @@ packages:
     peerDependencies:
       stylelint: '>=16'
 
-  stylelint@18.0.0:
-    resolution: {integrity: sha512-kI10GsHXQvsH/AcklVZdQgwDuxtHi+A+h1Ujzd7h9LDf3e5jQiLQkWFlPtpynX3E6oVWHG1wo9v6dL0Mr+nnSA==}
+  stylelint@18.1.0:
+    resolution: {integrity: sha512-QbF/IY7KY6lZRhYU/vmPU1KYxc71wgkXdgeptqzTh3lbnZps6WHaskfPjpL6Fh4JaCzwkKKitVcMrpfQTSwwPA==}
     engines: {node: ^22.22.2 || ^24.15.0 || >=26.0.0}
     hasBin: true
 
@@ -11598,18 +11598,18 @@ snapshots:
 
   style-mod@4.1.5: {}
 
-  stylelint-declaration-strict-value@1.13.0(stylelint@18.0.0):
+  stylelint-declaration-strict-value@1.13.0(stylelint@18.1.0):
     dependencies:
       regexp.escape: 2.0.1
-      stylelint: 18.0.0
+      stylelint: 18.1.0
 
-  stylelint-value-no-unknown-custom-properties@6.1.1(stylelint@18.0.0):
+  stylelint-value-no-unknown-custom-properties@6.1.1(stylelint@18.1.0):
     dependencies:
       postcss-value-parser: 4.2.0
       resolve: 1.22.14
-      stylelint: 18.0.0
+      stylelint: 18.1.0
 
-  stylelint@18.0.0:
+  stylelint@18.1.0:
     dependencies:
       '@csstools/css-calc': 3.4.4(@csstools/css-parser-algorithms@4.0.3(@csstools/css-tokenizer@4.0.3))(@csstools/css-tokenizer@4.0.3)
       '@csstools/css-parser-algorithms': 4.0.3(@csstools/css-tokenizer@4.0.3)
