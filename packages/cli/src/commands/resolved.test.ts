@@ -29,7 +29,7 @@ describe("resolved", () => {
     expect(output.mode).toBe("full");
     expect(output.config.extends).toBeUndefined();
     // …because what `:dependencyDashboard` sets is now written out directly.
-    expect(output.config.dependencyDashboard).toBe(true);
+    expect(output.config.dependencyDashboard).toEqual({ enabled: true });
   });
 
   test("--include-defaults writes out the options nothing set", async () => {

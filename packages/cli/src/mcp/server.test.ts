@@ -431,8 +431,8 @@ describe("drill-down", () => {
       runId,
       node: ":dependencyDashboard",
       body: "input",
-    })) as { input: { dependencyDashboard: boolean } };
-    expect(node.input.dependencyDashboard).toBe(true);
+    })) as { input: { dependencyDashboard: unknown } };
+    expect(node.input.dependencyDashboard).toEqual({ enabled: true });
   });
 
   test("a node's own children are one level, not zero — depth is relative to the query", async () => {
@@ -604,7 +604,7 @@ describe("drill-down", () => {
       runId,
       configScope: "package-rules",
     })) as { finalConfig: Record<string, unknown>; configView: { droppedGlobalOnly?: number } };
-    expect(scoped.configView.droppedGlobalOnly).toBe(111);
+    expect(scoped.configView.droppedGlobalOnly).toBe(112);
     expect(scoped.finalConfig).not.toHaveProperty("onboardingConfig");
   });
 
@@ -994,7 +994,7 @@ describe("simulate and compare", () => {
      */
     expect(parsed.configView).toMatchObject({
       scope: "package-rules",
-      droppedGlobalOnly: 111,
+      droppedGlobalOnly: 112,
     });
     expect(parsed.finalDependencyConfig).not.toHaveProperty("onboardingConfig");
     expect(parsed.finalDependencyConfig).not.toHaveProperty("dryRun");
@@ -1865,7 +1865,7 @@ describe("focused by default", () => {
     expect(notes).toContain("`rule: N`");
     // The per-dependency config: the class it dropped, counted, and the scope
     // that keeps it.
-    expect(sim.configView.droppedGlobalOnly).toBe(111);
+    expect(sim.configView.droppedGlobalOnly).toBe(112);
     expect(notes).toContain('detail: "full"');
 
     const comparison = (await call("compare_simulations", { runId, dep: DEP })) as {
