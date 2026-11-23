@@ -28,7 +28,7 @@ describe("tree", () => {
     expect(run.code).toBe(0);
     const node = run.payload;
     expect(node.body).toBe("input");
-    expect(node.input.dependencyDashboard).toBe(true);
+    expect(node.input.dependencyDashboard).toEqual({ enabled: true });
   });
 
   test("--node --body on a body the node never held says so", async () => {

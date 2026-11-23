@@ -1,7 +1,7 @@
 /**
  * GENERATED FILE — do not hand-edit.
  *
- * Produced by `scripts/generate-registry-names.mjs` from renovate@44.226.1's
+ * Produced by `scripts/generate-registry-names.mjs` from renovate@44.256.0's
  * own datasource/manager registries (`renovate/dist/modules/{datasource,manager}/api.js`).
  * Regenerate with `pnpm --filter @renovate-config-debugger/engine generate:registries`
  * after bumping the `renovate` dependency — see that script's header for why
@@ -67,6 +67,7 @@ export const DATASOURCE_NAMES: readonly string[] = [
   "java-version",
   "jenkins-plugins",
   "jsr",
+  "julia",
   "julia-general-metadata",
   "kubernetes-api",
   "maven",
@@ -87,6 +88,7 @@ export const DATASOURCE_NAMES: readonly string[] = [
   "rust-version",
   "sbt-package",
   "sbt-plugin",
+  "swift-package-registry",
   "terraform-module",
   "terraform-provider",
   "typst",
@@ -137,6 +139,7 @@ export const MANAGER_NAMES: readonly string[] = [
   "fleet",
   "flux",
   "fvm",
+  "gemspec",
   "git-submodules",
   "github-actions",
   "gitlabci",

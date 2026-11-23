@@ -102,7 +102,7 @@ describe("simulate --detail / --keys / --config-scope", () => {
     const config = payload.finalDependencyConfig as Record<string, unknown>;
     expect(payload.configView).toMatchObject({
       scope: "package-rules",
-      droppedGlobalOnly: 111,
+      droppedGlobalOnly: 112,
     });
     expect(config).not.toHaveProperty("onboardingConfig");
     expect(config).toHaveProperty("groupName", "react monorepo");

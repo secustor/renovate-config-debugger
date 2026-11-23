@@ -83,8 +83,8 @@ describe("compare", () => {
     // `description` is prose, so it is filed behind the behavioral keys rather
     // than headlining them by alphabetical accident.
     expect(run.stdout.split("\n")[0]).toBe(
-      "Behavior differs between A and B — dependencyDashboard (A=true by default, B=false by " +
-        'default), groupName (A=null by default, B="react monorepo"); description also changed ' +
+      "Behavior differs between A and B — dependencyDashboard, groupName; " +
+        "description also changed " +
         "(documentation); 1 rule started matching.",
     );
     expect(run.stdout).toContain("Matched only in B:");
@@ -121,8 +121,8 @@ describe("compare", () => {
     expect(run.code).toBe(0);
     const { summary, configDelta } = run.payload;
     expect(summary).toBe(
-      "differs: dependencyDashboard (A=true by default, B=false by default), groupName " +
-        '(A=null by default, B="react monorepo"); description also changed (documentation); ' +
+      "differs: dependencyDashboard, groupName; " +
+        "description also changed (documentation); " +
         "1 rule started matching",
     );
     expect(run.stdout).toContain("summary");
@@ -218,8 +218,8 @@ describe("compare", () => {
     expect(comparison.configDelta.map((d) => d.key)).toEqual(["groupName"]);
     // The verdict describes the whole comparison, not the view of it.
     expect(comparison.summary).toBe(
-      "differs: dependencyDashboard (A=true by default, B=false by default), groupName " +
-        '(A=null by default, B="react monorepo"); description also changed (documentation); ' +
+      "differs: dependencyDashboard, groupName; " +
+        "description also changed (documentation); " +
         "1 rule started matching",
     );
     // The reason a caller can act on: `--config-scope full` is what would

@@ -205,7 +205,7 @@ describe("computeResolvedConfig — full", () => {
     });
     const out = must(computeResolvedConfig(result, "full"), "a full resolved config");
     expect(out.config).not.toHaveProperty("extends");
-    expect(out.config.dependencyDashboard).toBe(true);
+    expect(out.config.dependencyDashboard).toEqual({ enabled: true });
     expect(out.config.rangeStrategy).toBe("bump");
     expect(out.config.automerge).toBe(false);
     expect(out.divergingKeys).toEqual([]);

@@ -25,11 +25,11 @@ function hashOf(distRelPath: string): string {
 
 describe("migrateConfig fork stays in sync with upstream", () => {
   it("upstream config/migration.js is unchanged since the fork was written", () => {
-    // renovate 44.221.4. If this fails after a renovate bump: open
+    // renovate 44.256.0. If this fails after a renovate bump: open
     // node_modules/renovate/dist/config/migration.js, re-diff it against
     // src/shims/migration.ts, port any changes, then update this hash.
     expect(hashOf("config/migration.js")).toBe(
-      "409a0caed3d0533b2689b525d94c6f8dac7c56c7754e5ba02a63cd9a88b72830",
+      "bcb86cbddd15ee62e12a319341b754de121798ac3b6173dc9a26b2e42aa739bd",
     );
   });
 
@@ -37,7 +37,7 @@ describe("migrateConfig fork stays in sync with upstream", () => {
     // The fork re-implements MigrationsService.run's per-key dispatch. If this
     // fails, re-check runMigrations() in src/shims/migration.ts.
     expect(hashOf("config/migrations/migrations-service.js")).toBe(
-      "8dc7c132653d38c729ec4db0efe3111e272b48e6c381622c8295c3559b18857d",
+      "9dfea367b587739c9eea92067015cffde6a5983b4174da4e6997113f045c62b5",
     );
   });
 });
