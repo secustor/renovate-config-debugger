@@ -1,9 +1,8 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   armLanding,
   createLandingActivity,
   jumpDisplacedFocus,
-  type LandingActivity,
   type LandingTicket,
   landingWanted,
 } from "@/lib/focus-landing";
@@ -112,10 +111,9 @@ function editsRunConfig(target: EventTarget | null): boolean {
  * unit-tested; what is left here is the DOM and the timing.
  */
 export function useFocusLanding(): FocusLanding {
-  // Not state, and deliberately: `input` fires on every keystroke, and the
+  // Mutated in place, never set: `input` fires on every keystroke, and the
   // panels' render budget while typing (032) is measured on exactly that path.
-  const activityRef = useRef<LandingActivity | null>(null);
-  const activity = (activityRef.current ??= createLandingActivity());
+  const [activity] = useState(createLandingActivity);
 
   useEffect(() => {
     function countInput(event: Event) {
