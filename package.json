@@ -21,7 +21,7 @@
     "@semantic-release/exec": "7.1.0",
     "@types/node": "26.6.6",
     "knip": "6.48.0",
-    "oxfmt": "0.79.0",
+    "oxfmt": "0.80.0",
     "oxlint": "1.95.0",
     "oxlint-tsgolint": "7.0.2008",
     "semantic-release": "26.0.1",
