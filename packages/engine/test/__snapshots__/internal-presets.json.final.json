@@ -106,7 +106,7 @@
   "customDatasources": {},
   "dockerChildPrefix": "renovate_",
   "dockerCliOptions": null,
-  "dockerSidecarImage": "ghcr.io/renovatebot/base-image:13.176.2",
+  "dockerSidecarImage": "ghcr.io/renovatebot/base-image:13.176.5",
   "dockerUser": "12021",
   "composerIgnorePlatformReqs": [],
   "goGetDirs": [
@@ -5431,6 +5431,22 @@
         "https://github.com/protocolbuffers/protobuf"
       ],
       "groupName": "protobuf monorepo",
+      "matchUpdateTypes": [
+        "digest",
+        "patch",
+        "minor",
+        "major"
+      ]
+    },
+    {
+      "description": [
+        "pydantic-ai monorepo",
+        "Group packages from pydantic-ai monorepo together."
+      ],
+      "matchSourceUrls": [
+        "https://github.com/pydantic/pydantic-ai"
+      ],
+      "groupName": "pydantic-ai monorepo",
       "matchUpdateTypes": [
         "digest",
         "patch",
