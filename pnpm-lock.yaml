@@ -346,8 +346,8 @@ importers:
         specifier: 2.0.3
         version: 2.0.3
       renovate:
-        specifier: 44.262.0
-        version: 44.262.0(supports-color@10.2.2)(typanion@3.14.0)
+        specifier: 44.262.1
+        version: 44.262.1(supports-color@10.2.2)(typanion@3.14.0)
     devDependencies:
       typescript:
         specifier: 7.0.2
@@ -5120,8 +5120,8 @@ packages:
   remark@15.0.1:
     resolution: {integrity: sha512-Eht5w30ruCXgFmxVUSlNWQ9iiimq07URKeFS3hNc8cUWy1llX4KDWfyEDZRycMc+znsN9Ux5/tJ/BFdgdOwA3A==}
 
-  renovate@44.262.0:
-    resolution: {integrity: sha512-Ws1+fEco8Gjf5R4IIfJBv57Ul3pFCqo4naKuqzYFx5KkhTrGuXxgA0sosygMq4UQCXwwrNjZ1CcqbdrVf9Jzfg==}
+  renovate@44.262.1:
+    resolution: {integrity: sha512-Tble+nO4Tctj9xZps3OuZDXKP1/ttfT8zRpFsaeOSKFnkmC355LQm8YAxbw1tVfnFTmpwe89SQiXXj0/30fLTQ==}
     engines: {node: ^24.11.0 || ^26.13.0, pnpm: ^11.0.0}
     hasBin: true
 
@@ -5287,8 +5287,8 @@ packages:
   shiki@1.29.2:
     resolution: {integrity: sha512-njXuliz/cP+67jU2hukkxCNuH1yUi4QfdZZY+sMr5PPrIyXSu5iTb/qYC4BiWWB0vZ+7TbdvYUCeL23zpwCfbg==}
 
-  shlex@3.0.0:
-    resolution: {integrity: sha512-jHPXQQk9d/QXCvJuLPYMOYWez3c43sORAgcIEoV7bFv5AJSJRAOyw5lQO12PMfd385qiLRCaDt7OtEzgrIGZUA==}
+  shlex@3.0.1:
+    resolution: {integrity: sha512-5ZM9M0xaWThR0cJDJKfNSKKbrACHjND55F25yS8HLl1FsQcyVy5oAxcaBLLaV/vHUtWpzd+PZlzGfxYLibVLZg==}
 
   side-channel-list@1.0.1:
     resolution: {integrity: sha512-mjn/0bi/oUURjc5Xl7IaWi/OJJJumuoJFQJfDDyO46+hBWsfaVM65TBHq2eoZBhzl9EchxOijpkbRC8SVBQU0w==}
@@ -11034,7 +11034,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  renovate@44.262.0(supports-color@10.2.2)(typanion@3.14.0):
+  renovate@44.262.1(supports-color@10.2.2)(typanion@3.14.0):
     dependencies:
       '@aws-sdk/client-codecommit': 3.1139.0
       '@aws-sdk/client-ec2': 3.1139.0
@@ -11144,7 +11144,7 @@ snapshots:
       semver: 7.8.6
       semver-stable: 3.0.0
       semver-utils: 1.1.4
-      shlex: 3.0.0
+      shlex: 3.0.1
       simple-git: 4.1.0(supports-color@10.2.2)
       slugify: 1.6.9
       source-map-support: 0.5.21
@@ -11392,7 +11392,7 @@ snapshots:
       '@shikijs/vscode-textmate': 10.1.0
       '@types/hast': 3.0.5
 
-  shlex@3.0.0: {}
+  shlex@3.0.1: {}
 
   side-channel-list@1.0.1:
     dependencies:
